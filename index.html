@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f7f4">
+  <title>LAW & LIFE PLANNER</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div class="brand-mark">L<span>&</span>L</div>
+      <p class="eyebrow">YOUR PERSONAL STUDY WORKSPACE</p>
+      <h1>LAW & LIFE<br>PLANNER</h1>
+      <p class="muted auth-intro">พื้นที่จัดการการเรียน งาน และเวลาของคุณในที่เดียว</p>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth-tab="login">เข้าสู่ระบบ</button>
+        <button class="auth-tab" data-auth-tab="signup">สมัครสมาชิก</button>
+      </div>
+      <form id="authForm">
+        <label>อีเมล<input id="authEmail" type="email" placeholder="name@example.com" required autocomplete="email"></label>
+        <label>รหัสผ่าน<input id="authPassword" type="password" placeholder="อย่างน้อย 6 ตัวอักษร" required minlength="6" autocomplete="current-password"></label>
+        <button class="btn btn-primary full" id="authSubmit" type="submit">เข้าสู่ระบบ</button>
+      </form>
+      <p id="authMessage" class="form-message" aria-live="polite"></p>
+      <p class="tiny muted">ข้อมูลของคุณจะถูกจัดเก็บในบัญชี Supabase ของคุณ</p>
+    </div>
+  </div>
+
+  <div id="app" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand"><div class="brand-mark small">L<span>&</span>L</div><div><strong>LAW & LIFE</strong><small>PLANNER</small></div></div>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="nav-list">
+        <button class="nav-item active" data-page="dashboard"><span class="nav-icon">▦</span> ภาพรวม</button>
+        <button class="nav-item" data-page="gantt"><span class="nav-icon">▤</span> Gantt Chart</button>
+        <button class="nav-item" data-page="exam"><span class="nav-icon">§</span> Law Exam</button>
+        <button class="nav-item" data-page="planner"><span class="nav-icon">▣</span> My Planner</button>
+        <button class="nav-item" data-page="focus"><span class="nav-icon">◷</span> Focus Room</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="user-chip"><div class="avatar">L</div><div class="user-details"><strong id="userEmail">ผู้ใช้งาน</strong><small>Personal workspace</small></div></div>
+        <button id="logoutBtn" class="logout-btn">ออกจากระบบ ↗</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button id="menuToggle" class="icon-btn mobile-only" aria-label="เปิดเมนู">☰</button>
+        <div><p class="eyebrow" id="todayLabel">PERSONAL WORKSPACE</p><h2 id="pageTitle">ภาพรวม</h2></div>
+        <div class="topbar-right"><span class="live-dot"></span><span class="muted small-text">บันทึกข้อมูลออนไลน์</span></div>
+      </header>
+
+      <section class="page active" id="page-dashboard">
+        <div class="welcome-row"><div><p class="eyebrow">GOOD TO SEE YOU</p><h1>วันนี้คุณอยากทำอะไรให้สำเร็จ?</h1><p class="muted">ค่อย ๆ จัดการทีละเรื่อง แล้วความคืบหน้าจะเกิดขึ้นเอง</p></div><div class="date-card"><span id="todayDay">--</span><strong id="todayDate">--</strong></div></div>
+        <div class="stat-grid">
+          <article class="stat-card"><div class="stat-top"><span>งานทั้งหมด</span><span class="stat-icon">▤</span></div><strong id="statTasks">0</strong><small class="muted">รายการใน Gantt Chart</small></article>
+          <article class="stat-card"><div class="stat-top"><span>งานที่เสร็จแล้ว</span><span class="stat-icon">✓</span></div><strong id="statDone">0</strong><small class="muted">รายการที่ทำสำเร็จ</small></article>
+          <article class="stat-card"><div class="stat-top"><span>กิจกรรมวันนี้</span><span class="stat-icon">▣</span></div><strong id="statToday">0</strong><small class="muted">รายการใน Planner</small></article>
+          <article class="stat-card"><div class="stat-top"><span>รอบโฟกัสทั้งหมด</span><span class="stat-icon">◷</span></div><strong id="statFocus">0</strong><small class="muted">รอบ Pomodoro ที่บันทึกไว้</small></article>
+        </div>
+        <div class="dashboard-grid">
+          <article class="panel"><div class="panel-heading"><div><p class="eyebrow">YOUR PROGRESS</p><h3>ความคืบหน้าของงาน</h3></div><button class="text-btn" data-go="gantt">ดูทั้งหมด →</button></div><div class="progress-wrap"><div class="progress-track"><div id="overallProgress" class="progress-fill"></div></div><strong id="progressLabel">0%</strong></div><div id="upcomingTasks" class="compact-list empty-state">ยังไม่มีงาน เพิ่มงานแรกของคุณได้ที่ Gantt Chart</div></article>
+          <article class="panel"><div class="panel-heading"><div><p class="eyebrow">TODAY</p><h3>ตารางวันนี้</h3></div><button class="text-btn" data-go="planner">เปิด Planner →</button></div><div id="todaySchedule" class="compact-list empty-state">ยังไม่มีแผนสำหรับวันนี้</div></article>
+        </div>
+        <article class="quote-panel"><span class="quote-mark">“</span><div><p>ความสม่ำเสมอเล็ก ๆ ในแต่ละวัน สร้างความเปลี่ยนแปลงที่ยิ่งใหญ่ได้</p><small>YOUR STUDY, YOUR PACE.</small></div></article>
+      </section>
+
+      <section class="page" id="page-gantt">
+        <div class="section-intro"><div><p class="eyebrow">PROJECT MANAGEMENT</p><h1>Gantt Chart</h1><p class="muted">วางแผนงาน มองเห็นระยะเวลา และติดตามความคืบหน้า</p></div><button class="btn btn-primary" id="addTaskBtn">＋ เพิ่มงาน</button></div>
+        <div class="toolbar"><div class="filter-pills"><button class="filter-btn active" data-task-filter="all">ทั้งหมด</button><button class="filter-btn" data-task-filter="todo">ยังไม่เริ่ม</button><button class="filter-btn" data-task-filter="doing">กำลังทำ</button><button class="filter-btn" data-task-filter="done">เสร็จแล้ว</button></div><span id="taskCount" class="muted small-text">0 รายการ</span></div>
+        <div class="panel gantt-panel"><div id="ganttChart" class="gantt-chart"><div class="empty-state">ยังไม่มีงาน กด “เพิ่มงาน” เพื่อเริ่มวางแผน</div></div></div>
+        <div class="panel table-panel"><div class="panel-heading"><h3>รายการงานทั้งหมด</h3><span class="muted small-text">แก้ไขหรือลบรายการได้</span></div><div id="taskList" class="task-list empty-state">ยังไม่มีรายการงาน</div></div>
+      </section>
+
+      <section class="page" id="page-exam">
+        <div class="section-intro"><div><p class="eyebrow">LEGAL STUDY SPACE</p><h1>Law Exam Practice</h1><p class="muted">ฝึกวิเคราะห์ข้อเท็จจริง ฝึกเขียนตอบ และทบทวนธงคำตอบ</p></div><button class="btn btn-primary" id="addExamBtn">＋ เพิ่มข้อสอบ</button></div>
+        <div class="exam-layout"><div class="exam-sidebar panel"><h3>คลังข้อสอบ</h3><input id="examSearch" class="search-input" placeholder="ค้นหาวิชา / หัวข้อ..."><div id="examFilters" class="exam-filters"><button class="exam-filter active" data-exam-filter="all">ทั้งหมด</button><button class="exam-filter" data-exam-filter="แพ่ง">กฎหมายแพ่ง</button><button class="exam-filter" data-exam-filter="อาญา">กฎหมายอาญา</button><button class="exam-filter" data-exam-filter="รัฐธรรมนูญ">กฎหมายรัฐธรรมนูญ</button><button class="exam-filter" data-exam-filter="อื่น ๆ">อื่น ๆ</button></div><div id="examList" class="exam-list"></div></div>
+          <div class="exam-workspace panel" id="examWorkspace"><div class="empty-state large-empty"><div class="empty-symbol">§</div><h3>เลือกข้อสอบเพื่อเริ่มฝึก</h3><p>หรือเพิ่มโจทย์ข้อสอบของคุณเองในคลังข้อสอบ</p></div></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-planner">
+        <div class="section-intro"><div><p class="eyebrow">TIME MANAGEMENT</p><h1>My Planner</h1><p class="muted">ออกแบบวันของคุณให้มีทั้งเวลาเรียน เวลาพัก และเวลาส่วนตัว</p></div><button class="btn btn-primary" id="addPlanBtn">＋ เพิ่มกิจกรรม</button></div>
+        <div class="planner-date-row"><label>เลือกวันที่ <input type="date" id="plannerDate"></label><div class="filter-pills"><button class="filter-btn" id="prevDay">← วันก่อน</button><button class="filter-btn" id="todayBtn">วันนี้</button><button class="filter-btn" id="nextDay">วันถัดไป →</button></div></div>
+        <div class="planner-grid"><article class="panel"><div class="panel-heading"><div><p class="eyebrow">DAILY SCHEDULE</p><h3 id="plannerHeading">ตารางกิจกรรม</h3></div><span class="muted small-text" id="planTotal">0 กิจกรรม</span></div><div id="plannerTimeline" class="timeline empty-state">ยังไม่มีกิจกรรมในวันนี้</div></article>
+          <article class="panel"><div class="panel-heading"><div><p class="eyebrow">DAILY CHECKLIST</p><h3>สิ่งที่ต้องทำ</h3></div></div><div id="plannerTodos" class="todo-list empty-state">เพิ่มกิจกรรมเพื่อสร้างรายการของวันนี้</div><div class="daily-note"><label for="dailyNote">บันทึกประจำวัน</label><textarea id="dailyNote" rows="4" placeholder="วันนี้ได้เรียนรู้อะไร หรือมีอะไรที่อยากจดจำ..."></textarea><button class="btn btn-secondary full" id="saveNoteBtn">บันทึกโน้ต</button></div></article>
+        </div>
+      </section>
+
+      <section class="page" id="page-focus">
+        <div class="section-intro"><div><p class="eyebrow">DEEP WORK SESSION</p><h1>Focus Room</h1><p class="muted">สร้างช่วงเวลาที่มีสมาธิ พร้อมเสียงบรรยากาศที่ช่วยให้ผ่อนคลาย</p></div><span class="focus-status"><span class="live-dot"></span> YOUR FOCUS SPACE</span></div>
+        <div class="focus-grid"><article class="panel timer-panel"><p class="eyebrow">POMODORO TIMER</p><div class="timer-modes"><button class="timer-mode active" data-mode="focus">Focus</button><button class="timer-mode" data-mode="short">Short break</button><button class="timer-mode" data-mode="long">Long break</button></div><div class="timer-ring"><svg viewBox="0 0 240 240"><circle class="ring-bg" cx="120" cy="120" r="104"></circle><circle id="timerProgress" class="ring-progress" cx="120" cy="120" r="104"></circle></svg><div class="timer-center"><strong id="timerDisplay">25:00</strong><span id="timerCaption">TIME TO FOCUS</span></div></div><div class="timer-controls"><button class="btn btn-primary" id="timerStart">เริ่มโฟกัส</button><button class="btn btn-secondary" id="timerReset">รีเซ็ต</button></div><div class="timer-settings"><label>Focus <select id="focusMinutes"><option value="25">25 นาที</option><option value="30">30 นาที</option><option value="45">45 นาที</option><option value="50">50 นาที</option></select></label><label>Break <select id="breakMinutes"><option value="5">5 นาที</option><option value="10">10 นาที</option><option value="15">15 นาที</option></select></label></div><p class="muted tiny center" id="focusSessionCount">สะสม 0 รอบโฟกัส</p></article>
+          <article class="panel sound-panel"><div class="panel-heading"><div><p class="eyebrow">AMBIENT SOUND LIBRARY</p><h3>เลือกเสียงที่ใช่สำหรับคุณ</h3></div><span class="sound-indicator" id="soundIndicator">● SOUND OFF</span></div><div class="sound-grid">
+            <button class="sound-card" data-sound="rain"><span class="sound-emoji">🌧</span><strong>Rainy Day</strong><small>เสียงฝนตก</small></button>
+            <button class="sound-card" data-sound="forest"><span class="sound-emoji">🌿</span><strong>Forest</strong><small>บรรยากาศธรรมชาติ</small></button>
+            <button class="sound-card" data-sound="ocean"><span class="sound-emoji">🌊</span><strong>Ocean Waves</strong><small>เสียงคลื่นทะเล</small></button>
+            <button class="sound-card" data-sound="white"><span class="sound-emoji">〰</span><strong>White Noise</strong><small>เสียงรบกวนสีขาว</small></button>
+            <button class="sound-card" data-sound="brown"><span class="sound-emoji">☁</span><strong>Brown Noise</strong><small>เสียงทุ้มต่อเนื่อง</small></button>
+            <button class="sound-card" data-sound="cafe"><span class="sound-emoji">☕</span><strong>Café Mood</strong><small>เสียงบรรยากาศคาเฟ่</small></button>
+          </div><div class="sound-player"><div><strong id="soundName">ยังไม่ได้เลือกเสียง</strong><small id="soundDescription">เลือกเสียงเพื่อเริ่มสร้างบรรยากาศ</small></div><div class="sound-controls"><label class="volume-label">ระดับเสียง <input type="range" id="volumeControl" min="0" max="100" value="30"></label><button class="btn btn-secondary" id="soundToggle">เล่นเสียง</button></div></div><p class="tiny muted">เสียงสร้างขึ้นภายในเบราว์เซอร์ ไม่ต้องดาวน์โหลดไฟล์เสียงเพิ่มเติม</p></article></div>
+        <article class="panel focus-history"><div class="panel-heading"><div><p class="eyebrow">YOUR CONSISTENCY</p><h3>ประวัติการโฟกัส</h3></div></div><div id="focusHistory" class="compact-list empty-state">ยังไม่มีประวัติการโฟกัส</div></article>
+      </section>
+      <footer class="footer">LAW & LIFE PLANNER <span>·</span> Plan with purpose. Learn with focus.</footer>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="modalBackdrop"><div class="modal" role="dialog" aria-modal="true"><div class="modal-heading"><h3 id="modalTitle">เพิ่มรายการ</h3><button class="icon-btn" id="modalClose" aria-label="ปิด">×</button></div><div id="modalBody"></div></div></div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="script.js"></script>
+</body>
+</html>
