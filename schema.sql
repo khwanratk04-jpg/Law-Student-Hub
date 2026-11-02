@@ -1,132 +1,75 @@
-/* LAW & LIFE PLANNER
-   1) Create a Supabase project.
-   2) Run schema.sql in Supabase SQL Editor.
-   3) Paste your Project URL and anon/publishable key below.
-*/
-const SUPABASE_URL = "sb_publishable_WER4ODkWeZ8ToCtJJuPPCA_hMi2Jjd6";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5b3RweW51dHpuY2h3bmd1enhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MjU2OTYsImV4cCI6MjEwOTIwMTY5Nn0.uld7KAXtq9XyDcHoieOhBYgPbSHKmHbaYfVqdtKaRcU";
+- LAW & LIFE PLANNER: Supabase database setup
+-- Run the entire script in Supabase > SQL Editor > New query.
 
-const $ = (s, root=document) => root.querySelector(s);
-const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-const todayISO = () => new Date().toLocaleDateString("en-CA");
-const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmtDate = value => value ? new Date(value+"T00:00:00").toLocaleDateString("th-TH",{day:"numeric",month:"short"}) : "—";
-const dateOffset = (date, days) => { const d=new Date(date+"T00:00:00"); d.setDate(d.getDate()+days); return d.toLocaleDateString("en-CA"); };
-let db=null, currentUser=null, authMode="login";
-let tasks=[], exams=[], plans=[], focusSessions=[];
-let selectedExam=null, examFilter="all", taskFilter="all", plannerDay=todayISO();
-let timerMode="focus", timerSeconds=1500, timerRemaining=1500, timerRunning=false, timerInterval=null, audioContext=null, soundNodes=[], activeSound=null;
-const duration = () => ({focus:Number($("#focusMinutes").value)*60,short:Number($("#breakMinutes").value)*60,long:15*60})[timerMode];
+create extension if not exists pgcrypto;
 
-function toast(message){const el=$("#toast");el.textContent=message;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2600)}
-function showAuthMessage(message,error=true){const el=$("#authMessage");el.textContent=message;el.style.color=error?"#a04f43":"#557d62"}
-function setAuthMode(mode){authMode=mode;$$("[data-auth-tab]").forEach(b=>b.classList.toggle("active",b.dataset.authTab===mode));$("#authSubmit").textContent=mode==="login"?"เข้าสู่ระบบ":"สร้างบัญชี"}
-function initSupabase(){
-  if(SUPABASE_URL.includes("YOUR_")||SUPABASE_ANON_KEY.includes("YOUR_")){showAuthMessage("กรุณาตั้งค่า Supabase URL และ anon key ในไฟล์ script.js ก่อนใช้งาน");return false}
-  if(!window.supabase){showAuthMessage("โหลด Supabase ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต");return false}
-  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);return true;
-}
-async function startApp(user){
-  currentUser=user;$("#userEmail").textContent=user.email||"ผู้ใช้งาน";$("#authScreen").classList.add("hidden");$("#app").classList.remove("hidden");
-  await loadAll();renderAll();setTodayHeader();
-}
-async function loadAll(){
-  const tables=["tasks","exams","planner_items","focus_sessions"];
-  const results=await Promise.all(tables.map(t=>db.from(t).select("*").order("created_at",{ascending:false})));
-  for(let i=0;i<results.length;i++){if(results[i].error){console.error(results[i].error);toast("โหลดข้อมูลบางส่วนไม่สำเร็จ");continue}}
-  tasks=results[0].data||[];exams=results[1].data||[];plans=results[2].data||[];focusSessions=results[3].data||[];
-}
-async function saveRow(table,row){const {data,error}=await db.from(table).upsert(row).select().single();if(error)throw error;return data}
-async function deleteRow(table,id){const {error}=await db.from(table).delete().eq("id",id);if(error)throw error}
-async function updateRow(table,id,changes){const {data,error}=await db.from(table).update(changes).eq("id",id).select().single();if(error)throw error;return data}
-function setTodayHeader(){const d=new Date();$("#todayLabel").textContent=d.toLocaleDateString("en-US",{weekday:"long",month:"long",year:"numeric"}).toUpperCase();$("#todayDay").textContent=d.toLocaleDateString("th-TH",{weekday:"short"});$("#todayDate").textContent=d.toLocaleDateString("th-TH",{day:"numeric",month:"short"})}
-function navigate(page){$$(".page").forEach(p=>p.classList.toggle("active",p.id==="page-"+page));$$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===page));const names={dashboard:"ภาพรวม",gantt:"Gantt Chart",exam:"Law Exam",planner:"My Planner",focus:"Focus Room"};$("#pageTitle").textContent=names[page]||"ภาพรวม";$("#sidebar").classList.remove("open");if(page==="focus")renderFocusHistory()}
-function renderAll(){renderDashboard();renderTasks();renderExams();renderPlanner();renderFocusHistory()}
-function renderDashboard(){
-  const done=tasks.filter(t=>t.status==="done").length,progress=tasks.length?Math.round(done/tasks.length*100):0;
-  $("#statTasks").textContent=tasks.length;$("#statDone").textContent=done;$("#statToday").textContent=plans.filter(p=>p.plan_date===todayISO()).length;$("#statFocus").textContent=focusSessions.length;
-  $("#overallProgress").style.width=progress+"%";$("#progressLabel").textContent=progress+"%";
-  const upcoming=tasks.filter(t=>t.status!=="done").sort((a,b)=>(a.end_date||"").localeCompare(b.end_date||"")).slice(0,4);
-  $("#upcomingTasks").innerHTML=upcoming.length?upcoming.map(t=>`<div class="compact-item"><div><strong>${escapeHTML(t.title)}</strong><small>${fmtDate(t.start_date)} – ${fmtDate(t.end_date)}</small></div><span class="task-meta">${statusText(t.status)}</span></div>`).join(""):'<div class="empty-state">ยังไม่มีงานที่กำลังดำเนินการ</div>';
-  const todays=plans.filter(p=>p.plan_date===todayISO()).sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||""));
-  $("#todaySchedule").innerHTML=todays.length?todays.slice(0,5).map(p=>`<div class="compact-item"><div><strong>${escapeHTML(p.title)}</strong><small>${escapeHTML(p.start_time||"ไม่ระบุเวลา")}${p.category?" · "+escapeHTML(p.category):""}</small></div><span class="task-meta">${p.completed?"เสร็จแล้ว":"ตามแผน"}</span></div>`).join(""):'<div class="empty-state">ยังไม่มีแผนสำหรับวันนี้</div>';
-}
-function statusText(s){return ({todo:"ยังไม่เริ่ม",doing:"กำลังทำ",done:"เสร็จแล้ว"})[s]||"ยังไม่เริ่ม"}
-function renderTasks(){
-  const filtered=tasks.filter(t=>taskFilter==="all"||t.status===taskFilter);$("#taskCount").textContent=filtered.length+" รายการ";
-  if(!filtered.length){$("#taskList").innerHTML='<div class="empty-state">ไม่พบรายการงาน</div>';$("#ganttChart").innerHTML='<div class="empty-state">ยังไม่มีงานในหมวดนี้</div>';return}
-  $("#taskList").innerHTML=filtered.map(t=>`<div class="task-row"><div class="task-title">${escapeHTML(t.title)}<div class="task-meta">${escapeHTML(t.description||"")}</div></div><div class="task-meta">${fmtDate(t.start_date)} – ${fmtDate(t.end_date)}</div><select class="status-select" data-task-status="${t.id}"><option value="todo" ${t.status==="todo"?"selected":""}>ยังไม่เริ่ม</option><option value="doing" ${t.status==="doing"?"selected":""}>กำลังทำ</option><option value="done" ${t.status==="done"?"selected":""}>เสร็จแล้ว</option></select><div class="row-actions"><button class="mini-btn" data-edit-task="${t.id}">แก้ไข</button><button class="mini-btn delete" data-delete-task="${t.id}">ลบ</button></div></div>`).join("");
-  renderGantt(filtered);
-}
-function renderGantt(list){
-  const start=new Date(todayISO()+"T00:00:00");start.setDate(start.getDate()-3);const startISO=start.toLocaleDateString("en-CA");
-  const days=Array.from({length:14},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return d});
-  let html=`<div class="gantt-row header"><div class="gantt-name">ชื่องาน</div><div class="gantt-axis">${days.map(d=>`<span>${d.getDate()}/${d.getMonth()+1}</span>`).join("")}</div></div>`;
-  list.forEach(t=>{const s=new Date((t.start_date||startISO)+"T00:00:00"),e=new Date((t.end_date||t.start_date||startISO)+"T00:00:00"),base=new Date(startISO+"T00:00:00");const left=Math.max(0,Math.round((s-base)/86400000));const right=Math.min(14,Math.round((e-base)/86400000)+1);const width=Math.max(1,right-left);html+=`<div class="gantt-row"><div class="gantt-name" title="${escapeHTML(t.title)}">${escapeHTML(t.title)}</div><div class="gantt-track"><div class="gantt-bar ${t.status}" style="left:${left/14*100}%;width:${width/14*100}%"></div></div></div>`});
-  $("#ganttChart").innerHTML=html;
-}
-function openModal(title,html,onSubmit){$("#modalTitle").textContent=title;$("#modalBody").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$("#modalForm")?.addEventListener("submit",async e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target).entries());try{await onSubmit(data);$("#modalBackdrop").classList.add("hidden")}catch(err){console.error(err);toast(err.message||"บันทึกไม่สำเร็จ")}})}
-function closeModal(){$("#modalBackdrop").classList.add("hidden")}
-function taskForm(task={}){openModal(task.id?"แก้ไขงาน":"เพิ่มงาน",`<form id="modalForm" class="modal-form"><label>ชื่องาน<input name="title" required maxlength="120" value="${escapeHTML(task.title||"")}" placeholder="เช่น อ่านกฎหมายแพ่ง บทที่ 1"></label><label>รายละเอียด<textarea name="description" rows="2">${escapeHTML(task.description||"")}</textarea></label><div class="form-grid"><label>วันเริ่มต้น<input type="date" name="start_date" required value="${task.start_date||todayISO()}"></label><label>วันสิ้นสุด<input type="date" name="end_date" required value="${task.end_date||todayISO()}"></label></div><label>สถานะ<select name="status"><option value="todo" ${task.status==="todo"?"selected":""}>ยังไม่เริ่ม</option><option value="doing" ${task.status==="doing"?"selected":""}>กำลังทำ</option><option value="done" ${task.status==="done"?"selected":""}>เสร็จแล้ว</option></select></label><button class="btn btn-primary full" type="submit">บันทึกงาน</button></form>`,async d=>{if(d.end_date<d.start_date)throw Error("วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น");const row={user_id:currentUser.id,title:d.title,description:d.description,start_date:d.start_date,end_date:d.end_date,status:d.status};if(task.id)row.id=task.id;const saved=await saveRow("tasks",row);tasks=[saved,...tasks.filter(x=>x.id!==saved.id)];renderTasks();renderDashboard();toast("บันทึกงานแล้ว")})}
-async function removeTask(id){if(!confirm("ต้องการลบงานนี้หรือไม่?"))return;await deleteRow("tasks",id);tasks=tasks.filter(t=>t.id!==id);renderTasks();renderDashboard();toast("ลบงานแล้ว")}
-function examForm(exam={}){openModal(exam.id?"แก้ไขข้อสอบ":"เพิ่มข้อสอบ",`<form id="modalForm" class="modal-form"><label>ชื่อข้อสอบ / หัวข้อ<input name="title" required value="${escapeHTML(exam.title||"")}" placeholder="เช่น หลักทั่วไปเรื่องนิติกรรม"></label><div class="form-grid"><label>หมวดวิชา<select name="subject"><option ${exam.subject==="แพ่ง"?"selected":""}>แพ่ง</option><option ${exam.subject==="อาญา"?"selected":""}>อาญา</option><option ${exam.subject==="รัฐธรรมนูญ"?"selected":""}>รัฐธรรมนูญ</option><option ${exam.subject==="อื่น ๆ"?"selected":""}>อื่น ๆ</option></select></label><label>ระดับความยาก<select name="difficulty"><option>พื้นฐาน</option><option ${exam.difficulty==="ปานกลาง"?"selected":""}>ปานกลาง</option><option ${exam.difficulty==="ท้าทาย"?"selected":""}>ท้าทาย</option></select></label></div><label>โจทย์ข้อสอบ<textarea name="question" rows="5" required>${escapeHTML(exam.question||"")}</textarea></label><label>ธงคำตอบ / แนวคำตอบ<textarea name="answer_key" rows="5" placeholder="เขียนประเด็น หลักกฎหมาย การปรับบท และข้อสรุป">${escapeHTML(exam.answer_key||"")}</textarea></label><label>คำแนะนำในการตอบ<textarea name="tips" rows="3" placeholder="ประเด็นที่ควรกล่าวถึง ข้อควรระวัง และเทคนิคการตอบ">${escapeHTML(exam.tips||"")}</textarea></label><button class="btn btn-primary full" type="submit">บันทึกข้อสอบ</button></form>`,async d=>{const row={user_id:currentUser.id,title:d.title,subject:d.subject,difficulty:d.difficulty,question:d.question,answer_key:d.answer_key,tips:d.tips};if(exam.id)row.id=exam.id;const saved=await saveRow("exams",row);exams=[saved,...exams.filter(x=>x.id!==saved.id)];selectedExam=saved.id;renderExams();toast("บันทึกข้อสอบแล้ว")})}
-function renderExams(){
-  const q=($("#examSearch")?.value||"").toLowerCase();const list=exams.filter(e=>(examFilter==="all"||e.subject===examFilter)&&(`${e.title} ${e.question} ${e.subject}`).toLowerCase().includes(q));
-  $("#examList").innerHTML=list.length?list.map(e=>`<button class="exam-list-item ${e.id===selectedExam?"active":""}" data-open-exam="${e.id}"><strong>${escapeHTML(e.title)}</strong><small>${escapeHTML(e.subject)} · ${escapeHTML(e.difficulty||"พื้นฐาน")}</small></button>`).join(""):'<div class="empty-state">ยังไม่มีข้อสอบในหมวดนี้</div>';
-  const e=exams.find(x=>x.id===selectedExam);
-  if(!e){$("#examWorkspace").innerHTML='<div class="empty-state large-empty"><div class="empty-symbol">§</div><h3>เลือกข้อสอบเพื่อเริ่มฝึก</h3><p>หรือเพิ่มโจทย์ข้อสอบของคุณเองในคลังข้อสอบ</p></div>';return}
-  $("#examWorkspace").innerHTML=`<div class="exam-work-head"><span class="exam-tag">${escapeHTML(e.subject)} · ${escapeHTML(e.difficulty||"พื้นฐาน")}</span><div class="panel-heading"><h3>${escapeHTML(e.title)}</h3><div class="row-actions"><button class="mini-btn" data-edit-exam="${e.id}">แก้ไข</button><button class="mini-btn delete" data-delete-exam="${e.id}">ลบ</button></div></div></div><p class="eyebrow">QUESTION</p><div class="exam-question">${escapeHTML(e.question)}</div><label for="studentAnswer">คำตอบของฉัน</label><textarea id="studentAnswer" class="answer-area" placeholder="เริ่มต้นด้วยการจับประเด็นข้อกฎหมาย แล้วอธิบายหลักกฎหมายและปรับบทกับข้อเท็จจริง..."></textarea><div class="exam-actions"><button class="btn btn-primary" id="toggleAnswer">เปิดดูธงคำตอบ</button><button class="btn btn-secondary" id="copyQuestion">คัดลอกโจทย์</button></div><div id="answerReveal" class="answer-key hidden"><p class="eyebrow">ANSWER GUIDE</p><h4>ธงคำตอบ / แนวคำตอบ</h4><p>${escapeHTML(e.answer_key||"ยังไม่มีการเพิ่มธงคำตอบสำหรับข้อนี้")}</p><h4>คำแนะนำในการตอบ</h4><div class="hint-box">${escapeHTML(e.tips||"ยังไม่มีคำแนะนำสำหรับข้อนี้")}</div></div>`;
-}
-async function deleteExam(id){if(!confirm("ต้องการลบข้อสอบนี้หรือไม่?"))return;await deleteRow("exams",id);exams=exams.filter(e=>e.id!==id);selectedExam=null;renderExams();toast("ลบข้อสอบแล้ว")}
-function renderPlanner(){
-  $("#plannerDate").value=plannerDay;$("#plannerHeading").textContent=new Date(plannerDay+"T00:00:00").toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-  const list=plans.filter(p=>p.plan_date===plannerDay).sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||""));$("#planTotal").textContent=list.length+" กิจกรรม";
-  $("#plannerTimeline").innerHTML=list.length?list.map(p=>`<div class="timeline-item"><div class="timeline-time">${escapeHTML(p.start_time||"—")}</div><div class="timeline-line"></div><div class="timeline-content"><strong>${escapeHTML(p.title)}</strong><small>${escapeHTML(p.category||"กิจกรรม")} ${p.end_time?"· "+escapeHTML(p.end_time):""}</small><div class="row-actions" style="justify-content:flex-start;margin-top:6px"><button class="mini-btn" data-edit-plan="${p.id}">แก้ไข</button><button class="mini-btn delete" data-delete-plan="${p.id}">ลบ</button></div></div></div>`).join(""):'<div class="empty-state">ยังไม่มีกิจกรรมในวันนี้</div>';
-  $("#plannerTodos").innerHTML=list.length?list.map(p=>`<label class="todo-item ${p.completed?"completed":""}"><input type="checkbox" data-plan-check="${p.id}" ${p.completed?"checked":""}><span>${escapeHTML(p.title)}</span></label>`).join(""):'<div class="empty-state">เพิ่มกิจกรรมเพื่อสร้างรายการของวันนี้</div>';
-  const note=localStorage.getItem("llp-note-"+plannerDay)||"";$("#dailyNote").value=note;
-}
-function planForm(plan={}){openModal(plan.id?"แก้ไขกิจกรรม":"เพิ่มกิจกรรม",`<form id="modalForm" class="modal-form"><label>ชื่อกิจกรรม<input name="title" required value="${escapeHTML(plan.title||"")}" placeholder="เช่น อ่านคำพิพากษา"></label><div class="form-grid"><label>วันที่<input name="plan_date" type="date" required value="${plan.plan_date||plannerDay}"></label><label>หมวดหมู่<select name="category"><option ${plan.category==="เรียน"?"selected":""}>เรียน</option><option ${plan.category==="งาน"?"selected":""}>งาน</option><option ${plan.category==="พักผ่อน"?"selected":""}>พักผ่อน</option><option ${plan.category==="ส่วนตัว"?"selected":""}>ส่วนตัว</option></select></label></div><div class="form-grid"><label>เวลาเริ่ม<input name="start_time" type="time" value="${plan.start_time||"09:00"}"></label><label>เวลาสิ้นสุด<input name="end_time" type="time" value="${plan.end_time||"10:00"}"></label></div><button class="btn btn-primary full" type="submit">บันทึกกิจกรรม</button></form>`,async d=>{const row={user_id:currentUser.id,title:d.title,plan_date:d.plan_date,category:d.category,start_time:d.start_time||null,end_time:d.end_time||null,completed:plan.completed||false};if(plan.id)row.id=plan.id;const saved=await saveRow("planner_items",row);plans=[saved,...plans.filter(p=>p.id!==saved.id)];plannerDay=d.plan_date;renderPlanner();renderDashboard();toast("บันทึกกิจกรรมแล้ว")})}
-async function togglePlan(id,completed){const saved=await updateRow("planner_items",id,{completed});plans=plans.map(p=>p.id===id?saved:p);renderPlanner();renderDashboard()}
-function setTimerMode(mode){timerMode=mode;timerRunning=false;clearInterval(timerInterval);timerSeconds=duration();timerRemaining=timerSeconds;$$(".timer-mode").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));$("#timerStart").textContent="เริ่มโฟกัส";$("#timerCaption").textContent=mode==="focus"?"TIME TO FOCUS":mode==="short"?"SHORT BREAK":"LONG BREAK";updateTimerUI()}
-function updateTimerUI(){const m=Math.floor(timerRemaining/60),s=timerRemaining%60;$("#timerDisplay").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");const circumference=2*Math.PI*104;$("#timerProgress").style.strokeDasharray=circumference;$("#timerProgress").style.strokeDashoffset=circumference*(1-timerRemaining/timerSeconds)}
-async function completeFocus(){timerRunning=false;clearInterval(timerInterval);$("#timerStart").textContent="เริ่มโฟกัส";if(timerMode==="focus"){try{const row=await saveRow("focus_sessions",{user_id:currentUser.id,mode:"focus",duration_minutes:Math.round(timerSeconds/60),completed_at:new Date().toISOString()});focusSessions=[row,...focusSessions];renderFocusHistory();renderDashboard();toast("ยอดเยี่ยม! บันทึกช่วงเวลาโฟกัสแล้ว")}catch(e){toast("จับเวลาสำเร็จ แต่บันทึกข้อมูลไม่สำเร็จ")}}else toast("หมดเวลาพักแล้ว พร้อมกลับมาโฟกัสหรือยัง?");}
-function startTimer(){if(timerRunning){timerRunning=false;clearInterval(timerInterval);$("#timerStart").textContent="ทำต่อ";return}if(timerRemaining<=0){timerRemaining=timerSeconds}timerRunning=true;$("#timerStart").textContent="หยุดชั่วคราว";timerInterval=setInterval(()=>{timerRemaining--;updateTimerUI();if(timerRemaining<=0)completeFocus()},1000)}
-function renderFocusHistory(){$("#focusSessionCount").textContent=`สะสม ${focusSessions.length} รอบโฟกัส`;$ ("#statFocus").textContent=focusSessions.length;$("#focusHistory").innerHTML=focusSessions.length?focusSessions.slice(0,8).map(s=>`<div class="compact-item"><div><strong>Focus session · ${s.duration_minutes} นาที</strong><small>${new Date(s.completed_at||s.created_at).toLocaleString("th-TH",{dateStyle:"medium",timeStyle:"short"})}</small></div><span class="task-meta">✓ Completed</span></div>`).join(""):'<div class="empty-state">ยังไม่มีประวัติการโฟกัส</div>'}
-function stopSound(){soundNodes.forEach(n=>{try{n.stop?.();n.disconnect?.()}catch(e){}});soundNodes=[];activeSound=null;$$(".sound-card").forEach(b=>b.classList.remove("active"));$("#soundIndicator").textContent="● SOUND OFF";$("#soundName").textContent="ยังไม่ได้เลือกเสียง";$("#soundDescription").textContent="เลือกเสียงเพื่อเริ่มสร้างบรรยากาศ";$("#soundToggle").textContent="เล่นเสียง"}
-function makeNoise(type){if(!audioContext)audioContext=new (window.AudioContext||window.webkitAudioContext)();const ctx=audioContext;const master=ctx.createGain();master.gain.value=Number($("#volumeControl").value)/100*.22;master.connect(ctx.destination);soundNodes.push(master);
-  const bufferSize=ctx.sampleRate*3,buffer=ctx.createBuffer(1,bufferSize,ctx.sampleRate),data=buffer.getChannelData(0);let last=0;
-  for(let i=0;i<bufferSize;i++){const white=Math.random()*2-1;if(type==="brown"){last=(last+.02*white)/1.02;data[i]=last*3.5}else if(type==="pink"){last=.97*last+.03*white;data[i]=last*2.4}else data[i]=white*.65}
-  const src=ctx.createBufferSource();src.buffer=buffer;src.loop=true;const filter=ctx.createBiquadFilter();filter.type="lowpass";filter.frequency.value=type==="rain"?4200:type==="brown"?700:type==="forest"?1800:10000;src.connect(filter);filter.connect(master);src.start();soundNodes.push(src,filter);
-  if(type==="ocean"){const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type="sine";osc.frequency.value=95;gain.gain.value=.13;const lfo=ctx.createOscillator(),lfoGain=ctx.createGain();lfo.frequency.value=.12;lfoGain.gain.value=.1;lfo.connect(lfoGain);lfoGain.connect(gain.gain);osc.connect(gain);gain.connect(master);osc.start();lfo.start();soundNodes.push(osc,gain,lfo,lfoGain)}
-  if(type==="cafe"){const osc=ctx.createOscillator(),g=ctx.createGain();osc.type="triangle";osc.frequency.value=170;g.gain.value=.035;osc.connect(g);g.connect(master);osc.start();soundNodes.push(osc,g)}
-  if(type==="forest"){const chirp=ctx.createOscillator(),g=ctx.createGain();chirp.type="sine";chirp.frequency.value=2100;g.gain.value=.012;chirp.connect(g);g.connect(master);chirp.start();soundNodes.push(chirp,g)}
-}
-function playSound(type){if(activeSound===type){stopSound();return}stopSound();activeSound=type;makeNoise(type);const names={rain:["Rainy Day","เสียงฝนตกเบา ๆ"],forest:["Forest","บรรยากาศธรรมชาติ"],ocean:["Ocean Waves","เสียงคลื่นต่อเนื่อง"],white:["White Noise","เสียงสีขาว"],brown:["Brown Noise","เสียงทุ้มต่อเนื่อง"],cafe:["Café Mood","บรรยากาศคาเฟ่"]};$("#soundName").textContent=names[type][0];$("#soundDescription").textContent=names[type][1];$("#soundIndicator").textContent="● SOUND ON";$("#soundToggle").textContent="ปิดเสียง";$$(".sound-card").forEach(b=>b.classList.toggle("active",b.dataset.sound===type))}
-function bindEvents(){
-  $$("[data-auth-tab]").forEach(b=>b.addEventListener("click",()=>setAuthMode(b.dataset.authTab)));
-  $("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!db&&!initSupabase())return;const email=$("#authEmail").value.trim(),password=$("#authPassword").value;$("#authSubmit").disabled=true;showAuthMessage("กำลังดำเนินการ...",false);try{const result=authMode==="login"?await db.auth.signInWithPassword({email,password}):await db.auth.signUp({email,password});if(result.error)throw result.error;if(result.data.session)await startApp(result.data.user);else showAuthMessage("สมัครสมาชิกสำเร็จ กรุณาตรวจสอบอีเมลเพื่อยืนยันบัญชีก่อนเข้าสู่ระบบ",false)}catch(err){showAuthMessage(err.message||"เกิดข้อผิดพลาด")}finally{$("#authSubmit").disabled=false}});
-  $("#logoutBtn").addEventListener("click",async()=>{stopSound();await db.auth.signOut();location.reload()});
-  $$(".nav-item").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));$$("[data-go]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.go)));
-  $("#menuToggle").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
-  $("#addTaskBtn").addEventListener("click",()=>taskForm());$$("[data-task-filter]").forEach(b=>b.addEventListener("click",()=>{taskFilter=b.dataset.taskFilter;$$("[data-task-filter]").forEach(x=>x.classList.toggle("active",x===b));renderTasks()}));
-  $("#taskList").addEventListener("click",e=>{const edit=e.target.closest("[data-edit-task]"),del=e.target.closest("[data-delete-task]");if(edit)taskForm(tasks.find(t=>t.id===edit.dataset.editTask));if(del)removeTask(del.dataset.deleteTask)});
-  $("#taskList").addEventListener("change",async e=>{if(e.target.matches("[data-task-status]")){try{const saved=await updateRow("tasks",e.target.dataset.taskStatus,{status:e.target.value});tasks=tasks.map(t=>t.id===saved.id?saved:t);renderTasks();renderDashboard()}catch(err){toast(err.message)}}});
-  $("#addExamBtn").addEventListener("click",()=>examForm());$("#examSearch").addEventListener("input",renderExams);$$("[data-exam-filter]").forEach(b=>b.addEventListener("click",()=>{examFilter=b.dataset.examFilter;$$("[data-exam-filter]").forEach(x=>x.classList.toggle("active",x===b));renderExams()}));
-  $("#examList").addEventListener("click",e=>{const b=e.target.closest("[data-open-exam]");if(b){selectedExam=b.dataset.openExam;renderExams()}});
-  $("#examWorkspace").addEventListener("click",async e=>{if(e.target.id==="toggleAnswer")$("#answerReveal").classList.toggle("hidden");if(e.target.id==="copyQuestion"){const ex=exams.find(x=>x.id===selectedExam);await navigator.clipboard.writeText(ex.question);toast("คัดลอกโจทย์แล้ว")}const edit=e.target.closest("[data-edit-exam]"),del=e.target.closest("[data-delete-exam]");if(edit)examForm(exams.find(x=>x.id===edit.dataset.editExam));if(del)deleteExam(del.dataset.deleteExam)});
-  $("#addPlanBtn").addEventListener("click",()=>planForm());$("#plannerDate").addEventListener("change",e=>{plannerDay=e.target.value;renderPlanner()});$("#prevDay").addEventListener("click",()=>{plannerDay=dateOffset(plannerDay,-1);renderPlanner()});$("#nextDay").addEventListener("click",()=>{plannerDay=dateOffset(plannerDay,1);renderPlanner()});$("#todayBtn").addEventListener("click",()=>{plannerDay=todayISO();renderPlanner()});
-  $("#plannerTimeline").addEventListener("click",e=>{const edit=e.target.closest("[data-edit-plan]"),del=e.target.closest("[data-delete-plan]");if(edit)planForm(plans.find(p=>p.id===edit.dataset.editPlan));if(del)(async()=>{if(confirm("ลบกิจกรรมนี้หรือไม่?")){await deleteRow("planner_items",del.dataset.deletePlan);plans=plans.filter(p=>p.id!==del.dataset.deletePlan);renderPlanner();renderDashboard();toast("ลบกิจกรรมแล้ว")}})()});
-  $("#plannerTodos").addEventListener("change",e=>{if(e.target.matches("[data-plan-check]"))togglePlan(e.target.dataset.planCheck,e.target.checked)});
-  $("#saveNoteBtn").addEventListener("click",()=>{localStorage.setItem("llp-note-"+plannerDay,$("#dailyNote").value);toast("บันทึกโน้ตในเบราว์เซอร์นี้แล้ว")});
-  $$(".timer-mode").forEach(b=>b.addEventListener("click",()=>setTimerMode(b.dataset.mode)));$("#timerStart").addEventListener("click",startTimer);$("#timerReset").addEventListener("click",()=>{timerRunning=false;clearInterval(timerInterval);timerRemaining=timerSeconds;$("#timerStart").textContent="เริ่มโฟกัส";updateTimerUI()});$("#focusMinutes").addEventListener("change",()=>{if(timerMode==="focus")setTimerMode("focus")});$("#breakMinutes").addEventListener("change",()=>{if(timerMode==="short")setTimerMode("short")});
-  $$(".sound-card").forEach(b=>b.addEventListener("click",()=>playSound(b.dataset.sound)));$("#soundToggle").addEventListener("click",()=>activeSound?stopSound():playSound("rain"));$("#volumeControl").addEventListener("input",()=>{const gain=soundNodes.find(n=>n instanceof GainNode);if(gain)gain.gain.value=Number($("#volumeControl").value)/100*.22});
-  $("#modalClose").addEventListener("click",closeModal);$("#modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")closeModal()});document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
-}
-async function boot(){
-  bindEvents();setTodayHeader();$("#plannerDate").value=plannerDay;
-  if(!initSupabase())return;
-  const {data:{session}}=await db.auth.getSession();if(session)await startApp(session.user);
-  db.auth.onAuthStateChange((_event,session)=>{if(session&&!currentUser)startApp(session.user)});
-  setTimerMode("focus");
-}
-document.addEventListener("DOMContentLoaded",boot);
+create table if not exists public.tasks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  description text default '',
+  start_date date not null,
+  end_date date not null,
+  status text not null default 'todo' check (status in ('todo','doing','done')),
+  created_at timestamptz not null default now(),
+  constraint tasks_date_order check (end_date >= start_date)
+);
+
+create table if not exists public.exams (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  subject text not null default 'อื่น ๆ',
+  difficulty text not null default 'พื้นฐาน',
+  question text not null,
+  answer_key text default '',
+  tips text default '',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.planner_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  plan_date date not null,
+  category text default 'เรียน',
+  start_time time,
+  end_time time,
+  completed boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.focus_sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  mode text not null default 'focus',
+  duration_minutes integer not null default 25,
+  completed_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+alter table public.tasks enable row level security;
+alter table public.exams enable row level security;
+alter table public.planner_items enable row level security;
+alter table public.focus_sessions enable row level security;
+
+drop policy if exists "Users manage their own tasks" on public.tasks;
+create policy "Users manage their own tasks" on public.tasks
+for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "Users manage their own exams" on public.exams;
+create policy "Users manage their own exams" on public.exams
+for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "Users manage their own planner items" on public.planner_items;
+create policy "Users manage their own planner items" on public.planner_items
+for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "Users manage their own focus sessions" on public.focus_sessions;
+create policy "Users manage their own focus sessions" on public.focus_sessions
+for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create index if not exists tasks_user_dates_idx on public.tasks(user_id, start_date, end_date);
+create index if not exists exams_user_created_idx on public.exams(user_id, created_at desc);
+create index if not exists planner_user_date_idx on public.planner_items(user_id, plan_date);
+create index if not exists focus_user_date_idx on public.focus_sessions(user_id, completed_at desc);
