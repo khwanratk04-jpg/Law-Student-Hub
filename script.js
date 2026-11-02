@@ -3,8 +3,8 @@
    2) Run schema.sql in Supabase SQL Editor.
    3) Paste your Project URL and anon/publishable key below.
 */
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "sb_publishable_WER4ODkWeZ8ToCtJJuPPCA_hMi2Jjd6";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5b3RweW51dHpuY2h3bmd1enhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MjU2OTYsImV4cCI6MjEwOTIwMTY5Nn0.uld7KAXtq9XyDcHoieOhBYgPbSHKmHbaYfVqdtKaRcU";
 
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
