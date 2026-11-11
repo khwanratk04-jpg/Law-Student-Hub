@@ -1,0 +1,2430 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Law Student Hub - ศูนย์รวมการเรียนรู้และบริหารเวลาสำหรับนักศึกษากฎหมาย</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Kanit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for Gantt-style visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Kanit', 'Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    },
+                    colors: {
+                        law: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            800: '#1e3a8a',
+                            900: '#172554',
+                            blue: '#2563eb',
+                            blueLight: '#3b82f6',
+                            lightBg: '#f8fafc',
+                            cardLight: '#ffffff',
+                            cardBorder: '#e2e8f0'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Kanit', 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.6); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 99px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+        
+        .glass-card-light {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
+        }
+
+        .auth-card-body {
+            background: #ffffff;
+            color: #0f172a;
+        }
+
+        .wave-bar {
+            animation: wave 1.2s ease-in-out infinite alternate;
+        }
+        @keyframes wave {
+            0% { height: 6px; }
+            100% { height: 28px; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+    <!-- APP CONTAINER -->
+    <div id="app" class="flex-grow flex flex-col">
+        
+        <!-- AUTH VIEW -->
+        <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4 bg-slate-100 relative overflow-y-auto">
+            <div class="w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-slate-200 bg-white my-8">
+                <!-- Banner Header -->
+                <div class="relative p-7 text-center bg-gradient-to-r from-slate-900 via-slate-800 to-blue-700 text-white overflow-hidden">
+                    <div class="absolute -right-6 -bottom-6 text-blue-400/15 pointer-events-none">
+                        <i data-lucide="scale" class="w-44 h-44"></i>
+                    </div>
+
+                    <div class="relative z-10 flex flex-col items-center">
+                        <div class="w-16 h-16 bg-blue-950/80 border-2 border-blue-400/80 rounded-2xl flex items-center justify-center mb-3 shadow-lg">
+                            <i data-lucide="graduation-cap" class="w-9 h-9 text-blue-400"></i>
+                        </div>
+                        <h1 class="text-2xl font-black tracking-wider uppercase text-white drop-shadow-sm">LAW STUDENT HUB</h1>
+                        <p class="text-[11px] text-blue-100/90 font-light mt-1">ศูนย์การเรียนรู้ คลังข้อสอบ และบริหารเวลาสำหรับนักศึกษานิติศาสตร์</p>
+                    </div>
+                </div>
+
+                <!-- Auth Main Tabs -->
+                <div class="flex border-b border-slate-200 bg-white">
+                    <button id="tab-login-btn" onclick="switchAuthTab('login')" class="flex-1 py-3.5 text-xs font-extrabold text-center border-b-2 border-blue-600 text-blue-600 flex items-center justify-center gap-1.5 transition-all">
+                        <i data-lucide="log-in" class="w-4 h-4"></i>
+                        <span>ลงชื่อเข้าใช้</span>
+                    </button>
+                    <button id="tab-reg-btn" onclick="switchAuthTab('register')" class="flex-1 py-3.5 text-xs font-extrabold text-center border-b-2 border-transparent text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1.5 transition-all">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i>
+                        <span>ลงทะเบียนใหม่</span>
+                    </button>
+                </div>
+
+                <!-- Auth Card Body -->
+                <div class="p-6 sm:p-7 space-y-5 auth-card-body">
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" id="type-student-btn" onclick="setAuthUserType('student')" class="py-2.5 px-3 text-xs font-bold rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1.5 shadow-sm transition-all">
+                            <i data-lucide="graduation-cap" class="w-4 h-4 text-blue-600"></i>
+                            <span>นักศึกษา (3 มหาวิทยาลัย)</span>
+                        </button>
+                        <button type="button" id="type-general-btn" onclick="setAuthUserType('general')" class="py-2.5 px-3 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-all">
+                            <i data-lucide="user" class="w-4 h-4 text-slate-400"></i>
+                            <span>บุคคลทั่วไป</span>
+                        </button>
+                    </div>
+
+                    <!-- LOGIN FORM -->
+                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                    <div id="login-uni-select-container">
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">เลือกสถาบันการศึกษา:</label>
+                        <div class="relative">
+                            <i data-lucide="landmark" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+                            <select id="login-uni" onchange="updateLoginDomainHint()" class="w-full pl-10 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none appearance-none font-medium">
+                                <option value="TU">มหาวิทยาลัยธรรมศาสตร์ (@dome.tu.ac.th)</option>
+                                <option value="CU">จุฬาลงกรณ์มหาวิทยาลัย (@student.chula.ac.th)</option>
+                                <option value="RU">มหาวิทยาลัยรามคำแหง (@rumail.ru.ac.th)</option>
+                            </select>
+                            <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-3 text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label id="login-email-label" class="block text-xs font-bold text-slate-700 mb-1.5">อีเมลนักศึกษา:</label>
+                        <div class="relative">
+                            <i data-lucide="mail" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+                            <input type="email" id="login-email" required placeholder="student@dome.tu.ac.th" class="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none font-medium">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">รหัสผ่าน:</label>
+                        <div class="relative">
+                            <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+                            <input type="password" id="login-pass" required placeholder="••••••••••••" class="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none font-medium">
+                        </div>
+                    </div>
+
+                    <div id="login-student-hint" class="flex items-center gap-1.5 text-[11px] text-blue-700 font-semibold pt-0.5">
+                        <i data-lucide="info" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>
+                        <span>รหัสผ่านสำหรับนักศึกษา โปรดใช้เลขบัตรประชาชน 13 หลัก</span>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 text-xs mt-2">
+                        <span>เข้าสู่ระบบ</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                </form>
+
+                <!-- REGISTER FORM -->
+                <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                    <div id="reg-uni-select-container">
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">เลือกสถาบันการศึกษา:</label>
+                        <div class="relative">
+                            <i data-lucide="landmark" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+                            <select id="reg-uni" onchange="updateRegDomainHint()" class="w-full pl-10 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none appearance-none font-medium">
+                                <option value="TU">มหาวิทยาลัยธรรมศาสตร์</option>
+                                <option value="CU">จุฬาลงกรณ์มหาวิทยาลัย</option>
+                                <option value="RU">มหาวิทยาลัยรามคำแหง</option>
+                            </select>
+                            <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-3 text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label id="reg-email-label" class="block text-xs font-bold text-slate-700 mb-1.5">อีเมลที่ใช้สมัคร:</label>
+                        <div class="relative">
+                            <i data-lucide="mail" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+                            <input type="email" id="reg-email" required placeholder="student@dome.tu.ac.th" class="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none font-medium">
+                        </div>
+                        <p id="reg-domain-badge" class="text-[11px] font-semibold text-blue-700 mt-1.5">
+                            🔒 บังคับโดเมน: <span id="required-domain-text">@dome.tu.ac.th</span>
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">กำหนดรหัสผ่าน:</label>
+                        <div class="relative">
+                            <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+                            <input type="password" id="reg-pass" required placeholder="••••••••••••" class="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none font-medium">
+                        </div>
+                    </div>
+
+                    <div id="reg-student-hint" class="flex items-center gap-1.5 text-[11px] text-blue-700 font-semibold pt-0.5">
+                        <i data-lucide="info" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>
+                        <span>รหัสผ่านสำหรับนักศึกษา โปรดใช้เลขบัตรประชาชน 13 หลัก</span>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 text-xs mt-2">
+                        <span>ยืนยันการลงทะเบียน</span>
+                        <i data-lucide="user-plus" class="w-4 h-4"></i>
+                    </button>
+                </form>
+
+                    <!-- REGISTER FORM -->
+                    <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                        <div id="reg-uni-select-container">
+                            <label class="block text-xs font-bold text-slate-700 mb-1.5">เลือกสถาบันการศึกษา:</label>
+                            <div class="relative">
+                                <i data-lucide="landmark" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+                                <select id="reg-uni" onchange="updateDomainHint()" class="w-full pl-10 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none appearance-none font-medium">
+                                    <option value="TU">มหาวิทยาลัยธรรมศาสตร์</option>
+                                    <option value="CU">จุฬาลงกรณ์มหาวิทยาลัย</option>
+                                    <option value="RU">มหาวิทยาลัยรามคำแหง</option>
+                                </select>
+                                <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-3 text-slate-400 pointer-events-none"></i>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label id="reg-email-label" class="block text-xs font-bold text-slate-700 mb-1.5">อีเมลที่ใช้สมัคร:</label>
+                            <div class="relative">
+                                <i data-lucide="mail" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+                                <input type="email" id="reg-email" required placeholder="student@dome.tu.ac.th" class="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none font-medium">
+                            </div>
+                            <p id="reg-domain-badge" class="text-[11px] font-semibold text-blue-700 mt-1.5">
+                                🔒 บังคับโดเมน: <span id="required-domain-text">@dome.tu.ac.th</span>
+                            </p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1.5">กำหนดรหัสผ่าน:</label>
+                            <div class="relative">
+                                <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+                                <input type="password" id="reg-pass" required placeholder="••••••••••••" class="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none font-medium">
+                            </div>
+                        </div>
+
+                        <div id="reg-student-hint" class="flex items-center gap-1.5 text-[11px] text-blue-700 font-semibold pt-0.5">
+                            <i data-lucide="info" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>
+                            <span>รหัสผ่านสำหรับนักศึกษา โปรดใช้เลขบัตรประชาชน 13 หลัก</span>
+                        </div>
+
+                        <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 text-xs mt-2">
+                            <span>ยืนยันการลงทะเบียน</span>
+                            <i data-lucide="user-plus" class="w-4 h-4"></i>
+                        </button>
+                    </form>
+                    
+                    <div id="auth-error-msg" class="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 hidden">
+                        <i data-lucide="alert-circle" class="w-4 h-4 text-red-500 flex-shrink-0"></i>
+                        <span id="auth-error-text">เกิดข้อผิดพลาดในการตรวจสอบข้อมูล</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN DASHBOARD -->
+        <div id="main-app" class="hidden flex-grow flex flex-col min-h-screen bg-slate-50">
+            <!-- HEADER -->
+            <header class="bg-white text-slate-900 sticky top-0 z-40 border-b border-slate-200 shadow-sm">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="flex items-center justify-between h-16">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2.5 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-xl shadow-md">
+                                <i data-lucide="scale" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <span class="font-extrabold text-lg tracking-tight block leading-none text-slate-900">Law Student Hub</span>
+                                <span class="text-[10px] text-blue-600 tracking-wider uppercase font-bold">Smart Legal Productivity</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="hidden md:flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                                <span id="nav-user-email" class="font-medium text-slate-700">user@example.com</span>
+                                <span id="nav-user-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">นักศึกษา TU</span>
+                            </div>
+                            <button onclick="openSettingsModal()" class="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold border border-slate-200" title="ตั้งค่าบัญชี">
+                                <i data-lucide="user-cog" class="w-4 h-4"></i>
+                                <span class="hidden sm:inline">ตั้งค่า</span>
+                            </button>
+                            <button onclick="handleLogout()" class="p-2 px-3 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold border border-slate-200">
+                                <i data-lucide="log-out" class="w-4 h-4"></i>
+                                <span class="hidden sm:inline">Logout</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- NAV TABS -->
+                <div class="bg-slate-100/70 px-4 border-t border-slate-200">
+                    <div class="max-w-7xl mx-auto flex space-x-2 overflow-x-auto custom-scrollbar text-xs sm:text-sm font-semibold py-1.5">
+                        <button onclick="switchTab('gantt')" id="nav-tab-gantt" class="nav-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md transition-all">
+                            <i data-lucide="kanban" class="w-4 h-4"></i>
+                            <span>1. Progress & Gantt</span>
+                        </button>
+                        <button onclick="switchTab('exambank')" id="nav-tab-exambank" class="nav-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-all">
+                            <i data-lucide="book-open" class="w-4 h-4"></i>
+                            <span>2. Exam Hub (คลังข้อสอบ)</span>
+                        </button>
+                        <button onclick="switchTab('pomodoro')" id="nav-tab-pomodoro" class="nav-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-all">
+                            <i data-lucide="timer" class="w-4 h-4"></i>
+                            <span>3. Quality Planner & Sound</span>
+                        </button>
+                        <button onclick="switchTab('course-reviews')" id="nav-tab-course-reviews" class="nav-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-all">
+                            <i data-lucide="star" class="w-4 h-4 text-amber-500"></i>
+                            <span>4. รีวิวเซก & วิชาเรียน</span>
+                        </button>
+                        <button onclick="switchTab('summary-sheets')" id="nav-tab-summary-sheets" class="nav-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-all">
+                            <i data-lucide="file-text" class="w-4 h-4 text-emerald-600"></i>
+                            <span>5. คลังชีทสรุป (Summary Hub)</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- MAIN CONTENT AREA -->
+            <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+                
+                <!-- SECTION 1: GANTT CHART & TASK MANAGER (HIGH CLARITY REDESIGN) -->
+                <section id="section-gantt" class="space-y-6">
+                    <!-- Progress Overview Bar Header -->
+                    <div class="glass-card-light p-6 rounded-3xl space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="target" class="w-5 h-5 text-blue-600"></i>
+                                    <span>สรุปความก้าวหน้าการอ่านหนังสือ & งานภาพรวม (Overall Progress)</span>
+                                </h2>
+                                <p class="text-xs text-slate-500">ติดตามภาพรวม วางแผน Agile และปรับเปลี่ยนกำหนดวันอ่านยืดหยุ่นได้ทันที</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-semibold text-slate-500">ความก้าวหน้ารวม:</span>
+                                <span id="header-total-progress-percent" class="text-xl font-black text-blue-600 font-mono">0%</span>
+                            </div>
+                        </div>
+
+                        <!-- Main Big Progress Bar -->
+                        <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                            <div id="header-total-progress-bar" class="bg-gradient-to-r from-blue-600 to-indigo-600 h-full rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                        </div>
+
+                        <!-- Status Cards -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                            <div class="p-3 bg-blue-50 border border-blue-100 rounded-2xl">
+                                <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider">ภาระงานทั้งหมด</p>
+                                <h4 id="stat-total-tasks" class="text-xl font-black text-blue-900">0</h4>
+                            </div>
+                            <div class="p-3 bg-amber-50 border border-amber-100 rounded-2xl">
+                                <p class="text-[10px] font-bold text-amber-600 uppercase tracking-wider">กำลังดำเนินการ</p>
+                                <h4 id="stat-in-progress-tasks" class="text-xl font-black text-amber-900">0</h4>
+                            </div>
+                            <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl">
+                                <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">เสร็จสิ้นแล้ว</p>
+                                <h4 id="stat-completed-tasks" class="text-xl font-black text-emerald-900">0</h4>
+                            </div>
+                            <div class="p-3 bg-purple-50 border border-purple-100 rounded-2xl">
+                                <p class="text-[10px] font-bold text-purple-600 uppercase tracking-wider">วิชาคณะ (Law)</p>
+                                <h4 id="stat-law-tasks" class="text-xl font-black text-purple-900">0</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Add/Edit Task Form -->
+                        <div class="lg:col-span-1 glass-card-light p-6 rounded-3xl h-fit space-y-4">
+                            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                                <h2 class="font-bold text-base text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="plus-circle" class="w-5 h-5 text-blue-600"></i>
+                                    <span>เพิ่ม / แก้ไข ภาระงาน</span>
+                                </h2>
+                                <span class="text-[10px] font-extrabold uppercase px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">Agile</span>
+                            </div>
+                            
+                            <form id="task-form" onsubmit="saveTask(event)" class="space-y-4">
+                                <input type="hidden" id="task-id">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อภาระงาน / หัวข้ออ่านหนังสือ</label>
+                                    <input type="text" id="task-name" required placeholder="เช่น อ่าน ป.พ.พ. มาตรา 150-171" class="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">หมวดหมู่ (Category)</label>
+                                    <select id="task-category" class="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none">
+                                        <option value="Law">วิชาคณะ (Law)</option>
+                                        <option value="GE">วิชาทั่วไป (GE)</option>
+                                        <option value="Activity">กิจกรรม (Activity)</option>
+                                        <option value="Personal">ส่วนตัว (Personal)</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">วันเริ่ม</label>
+                                        <input type="date" id="task-start" required class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">วันสิ้นสุด</label>
+                                        <input type="date" id="task-end" required class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none">
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between items-center mb-1">
+                                        <label class="text-xs font-semibold text-slate-700">ความก้าวหน้า (% Progress)</label>
+                                        <span id="task-progress-val" class="text-xs font-black text-blue-600">0%</span>
+                                    </div>
+                                    <input type="range" id="task-progress" min="0" max="100" value="0" oninput="document.getElementById('task-progress-val').innerText = this.value + '%'" class="w-full accent-blue-600">
+                                </div>
+                                <div class="pt-2 flex gap-2">
+                                    <button type="submit" id="task-submit-btn" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+                                        <i data-lucide="save" class="w-4 h-4"></i>
+                                        <span>บันทึก Task</span>
+                                    </button>
+                                    <button type="button" onclick="resetTaskForm()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all text-xs border border-slate-200">
+                                        ยกเลิก
+                                    </button>
+                        <!-- Gantt Chart Visualization (High-Clarity Date-Centric Timeline Grid Table) -->
+                        <div class="lg:col-span-2 glass-card-light p-6 rounded-3xl flex flex-col justify-between space-y-4">
+                            <div>
+                                <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                                    <h2 class="font-bold text-base text-slate-800 flex items-center gap-2">
+                                        <i data-lucide="calendar-range" class="w-5 h-5 text-blue-600"></i>
+                                        <span>ตารางไทม์ไลน์ตามวันที่ (Date-Centric Timeline Table)</span>
+                                    </h2>
+                                    <span class="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        วันที่ปัจจุบันมีไฮไลต์ (Today)
+                                    </span>
+                                </div>
+
+                                <!-- Date Grid Table View -->
+                                <div class="overflow-x-auto pt-3 custom-scrollbar">
+                                    <div id="ganttTableContainer" class="min-w-[600px]">
+                                        <!-- Dynamic Date Grid Table Rendered via JS -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-3 border-t border-slate-200 flex flex-wrap gap-4 text-xs font-bold text-slate-700">
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-blue-600"></span> วิชาคณะ (Law)</span>
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-emerald-500"></span> วิชาทั่วไป (GE)</span>
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-amber-500"></span> กิจกรรม</span>
+                                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-purple-500"></span> ส่วนตัว</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Today Focus Card & Tasks Table List -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Today Focus Tasks -->
+                        <div class="lg:col-span-1 glass-card-light p-6 rounded-3xl space-y-3">
+                            <h3 class="font-bold text-base text-slate-800 flex items-center gap-2 border-b border-slate-200 pb-3">
+                                <i data-lucide="calendar-check" class="w-5 h-5 text-emerald-600"></i>
+                                <span>ตารางอ่านหนังสือวันนี้ (Today's Focus)</span>
+                            </h3>
+                            <div id="today-tasks-container" class="space-y-2.5">
+                                <!-- Dynamic Today Tasks -->
+                            </div>
+                        </div>
+
+                        <!-- Full Tasks Table List -->
+                        <div class="lg:col-span-2 glass-card-light p-6 rounded-3xl overflow-hidden space-y-4">
+                            <h3 class="font-bold text-base text-slate-800 flex items-center gap-2 border-b border-slate-200 pb-3">
+                                <i data-lucide="layers" class="w-5 h-5 text-blue-600"></i>
+                                <span>รายการภาระงานทั้งหมด (Task Management Table)</span>
+                            </h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs sm:text-sm">
+                                    <thead>
+                                        <tr class="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200">
+                                            <th class="p-3.5 rounded-l-xl">ชื่อภาระงาน</th>
+                                            <th class="p-3.5">หมวดหมู่</th>
+                                            <th class="p-3.5">กรอบเวลา / กำหนดส่ง</th>
+                                            <th class="p-3.5">ความคืบหน้า</th>
+                                            <th class="p-3.5 text-right rounded-r-xl">จัดการ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tasks-table-body" class="divide-y divide-slate-200">
+                                        <!-- Dynamic Rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 2: EXAM BANK & DISCUSSION -->
+                <section id="section-exambank" class="space-y-6 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card-light p-4 rounded-3xl">
+                        <div class="flex items-center gap-2 overflow-x-auto">
+                            <button onclick="switchExamSubTab('search')" id="exam-tab-search" class="px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-blue-600 text-white shadow-md transition-all">
+                                🔍 ค้นหาข้อสอบเก่า
+                            </button>
+                            <button onclick="switchExamSubTab('upload')" id="exam-tab-upload" class="px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all border border-slate-200">
+                                📤 อัปโหลดข้อสอบส่วนบุคคล
+                            </button>
+                            <button onclick="switchExamSubTab('approval')" id="exam-tab-approval" class="px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all border border-slate-200 flex items-center gap-2">
+                                🛡️ รออนุมัติ (Admin View)
+                                <span id="pending-count-badge" class="px-2 py-0.5 bg-blue-600 text-white rounded-full text-[10px] font-black">0</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SEARCH & PRACTICE -->
+                    <div id="exam-subtab-search" class="space-y-6">
+                        <div class="glass-card-light p-6 rounded-3xl">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-slate-800 flex items-center gap-2 text-sm sm:text-base">
+                                    <i data-lucide="sliders-horizontal" class="w-5 h-5 text-blue-600"></i>
+                                    <span>ระบบค้นหาข้อสอบขั้นสูง (Advanced Exam Search)</span>
+                                </h3>
+                                <button onclick="resetExamSearch()" class="text-xs font-semibold text-blue-600 hover:underline">ล้างตัวกรอง</button>
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="relative">
+                                    <i data-lucide="search" class="w-5 h-5 absolute left-4 top-3.5 text-slate-400"></i>
+                                    <input type="text" id="search-general" oninput="filterExams()" placeholder="ค้นหาทั่วไปด้วยคำสำคัญ (เช่น นิติกรรม, ประมาท, ป.อ. 288)..." class="w-full pl-12 pr-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 text-slate-800 outline-none">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-3 border-t border-slate-200">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">1. รหัสวิชา</label>
+                                    <input type="text" id="search-code" oninput="filterExams()" placeholder="เช่น น. 101" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">2. ชื่อวิชา</label>
+                                    <input type="text" id="search-name" oninput="filterExams()" placeholder="เช่น กฎหมายอาญา" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">3. ผู้สอน</label>
+                                    <input type="text" id="search-prof" oninput="filterExams()" placeholder="เช่น ดร.สมชาย" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">4. มหาวิทยาลัย</label>
+                                    <select id="search-uni" onchange="filterExams()" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                                        <option value="">ทั้งหมด</option>
+                                        <option value="มหาวิทยาลัยธรรมศาสตร์">มหาวิทยาลัยธรรมศาสตร์</option>
+                                        <option value="จุฬาลงกรณ์มหาวิทยาลัย">จุฬาลงกรณ์มหาวิทยาลัย</option>
+                                        <option value="มหาวิทยาลัยรามคำแหง">มหาวิทยาลัยรามคำแหง</option>
+                                        <option value="ข้อสอบส่วนบุคคล (Personal / Community Uploads)">ข้อสอบส่วนบุคคล (Community)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">5. ปีการศึกษา</label>
+                                    <input type="text" id="search-year" oninput="filterExams()" placeholder="เช่น 2566" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="exams-container" class="space-y-6">
+                            <!-- Dynamic Exam Cards -->
+                        </div>
+                    </div>
+
+                    <!-- COMMUNITY UPLOAD -->
+                    <div id="exam-subtab-upload" class="glass-card-light p-6 sm:p-8 rounded-3xl hidden max-w-2xl mx-auto">
+                        <div class="border-b border-slate-200 pb-4 mb-5">
+                            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                                <i data-lucide="upload-cloud" class="w-6 h-6 text-blue-600"></i>
+                                <span>อัปโหลดข้อสอบส่วนบุคคล (Personal / Community Upload)</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-1">แบ่งปันข้อสอบเก่าเพื่อการศึกษา ข้อสอบจะขึ้นหมวดหมู่ "ข้อสอบส่วนบุคคล" เมื่อผ่านการอนุมัติ</p>
+                        </div>
+                        <form onsubmit="handleExamUpload(event)" class="space-y-4 text-xs">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">รหัสวิชา</label>
+                                    <input type="text" id="upload-code" required placeholder="เช่น น. 201" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">ชื่อวิชา</label>
+                                    <input type="text" id="upload-name" required placeholder="เช่น กฎหมายอาญา ภาคความผิด" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">อาจารย์ผู้สอน</label>
+                                    <input type="text" id="upload-prof" required placeholder="ชื่ออาจารย์ผู้สอน" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">ปีการศึกษา</label>
+                                    <input type="text" id="upload-year" required placeholder="เช่น 2567" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">โจทย์ข้อสอบ</label>
+                                <textarea id="upload-question" required rows="4" placeholder="พิมพ์โจทย์ข้อสอบที่นี่..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">ธงคำตอบ (ถ้ามี)</label>
+                                <textarea id="upload-answer" rows="3" placeholder="เฉลยหรือประเด็นแนวทางคำตอบ..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">เกณฑ์การให้คะแนน (Rubric)</label>
+                                <textarea id="upload-rubric" rows="2" placeholder="เช่น มาตรา 288 (5 คะแนน)..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+                            <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                                <span>ส่งข้อสอบเพื่อรอการอนุมัติ (Pending Approval)</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- ADMIN APPROVAL PANEL -->
+                    <div id="exam-subtab-approval" class="glass-card-light p-6 sm:p-8 rounded-3xl hidden">
+                        <div class="border-b border-slate-200 pb-3 mb-4 flex items-center justify-between">
+                            <div>
+                                <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>
+                                    <span>รายการข้อสอบรอการอนุมัติ & การจัดการรายงาน (Admin Panel)</span>
+                                </h3>
+                                <p class="text-xs text-slate-500">ตรวจสอบอนุมัติข้อสอบส่วนบุคคล และจัดการความคิดเห็นที่ถูกรายงาน</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="switchAdminTab('pendingExams')" id="admin-subtab-exams-btn" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white">ข้อสอบรออนุมัติ</button>
+                                <button onclick="switchAdminTab('reportedComments')" id="admin-subtab-reports-btn" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">คอมเมนต์ถูกรายงาน</button>
+                            </div>
+                        </div>
+
+                        <div id="admin-pending-exams-view" class="space-y-4">
+                            <div id="pending-exams-list" class="space-y-4">
+                                <!-- Pending Items Dynamic -->
+                            </div>
+                        </div>
+
+                        <div id="admin-reported-comments-view" class="space-y-4 hidden">
+                            <div id="reported-comments-list" class="space-y-4">
+                                <!-- Reported Comments Dynamic -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 3: QUALITY PLANNER & BRAINWAVES -->
+                <section id="section-pomodoro" class="space-y-6 hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Pomodoro Card -->
+                        <div class="glass-card-light p-6 sm:p-8 rounded-3xl text-center flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
+                                    <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+                                        <i data-lucide="timer" class="w-5 h-5 text-blue-600"></i>
+                                        <span>Pomodoro Focus Timer</span>
+                                    </h3>
+                                    <span id="timer-mode-label" class="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">Focus Session</span>
+                                </div>
+
+                                <div class="my-6">
+                                    <div id="pomo-display" class="text-6xl sm:text-7xl font-black tracking-tight text-slate-800 font-mono">25:00</div>
+                                </div>
+
+                                <div class="grid grid-cols-4 gap-2 mb-6 text-xs">
+                                    <button onclick="setTimerPreset(25, 'Focus Session')" class="py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl border border-blue-200">25m Focus</button>
+                                    <button onclick="setTimerPreset(5, 'Short Break')" class="py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl border border-emerald-200">5m Break</button>
+                                    <button onclick="setTimerPreset(15, 'Long Break')" class="py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-xl border border-purple-200">15m Break</button>
+                                    <button onclick="openCustomTimerModal()" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl border border-slate-200">Custom</button>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-3">
+                                <button id="timer-start-btn" onclick="startPomodoro()" class="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl shadow-lg transition-all text-xs flex items-center justify-center gap-2">
+                                    <i data-lucide="play" class="w-4 h-4"></i>
+                                    <span>เริ่มจับเวลา</span>
+                                </button>
+                                <button id="timer-pause-btn" onclick="pausePomodoro()" class="flex-1 py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-2xl shadow-lg transition-all text-xs flex items-center justify-center gap-2 hidden">
+                                    <i data-lucide="pause" class="w-4 h-4"></i>
+                                    <span>พักชั่วคราว</span>
+                                </button>
+                                <button onclick="resetPomodoro()" class="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all text-xs border border-slate-200">
+                                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Brainwave Audio Player Card -->
+                        <div class="glass-card-light p-6 sm:p-8 rounded-3xl flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
+                                    <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+                                        <i data-lucide="headphones" class="w-5 h-5 text-blue-600"></i>
+                                        <span>Brainwave Entrainment & Sound Hub</span>
+                                    </h3>
+                                    <span id="audio-status-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Ready</span>
+                                </div>
+
+                                <div class="space-y-3 text-xs">
+                                    <div onclick="playBrainwave('beta')" class="p-3.5 rounded-2xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 cursor-pointer transition-all flex items-center justify-between group">
+                                        <div>
+                                            <h4 class="font-bold text-slate-800 group-hover:text-blue-700">⚡ Beta Waves (13–30 Hz)</h4>
+                                            <p class="text-slate-500 text-[11px]">วิเคราะห์ฎีกา แก้โจทย์กฎหมายเชิง Logic</p>
+                                        </div>
+                                        <i data-lucide="play-circle" class="w-5 h-5 text-blue-600"></i>
+                                    </div>
+
+                                    <div onclick="playBrainwave('alpha')" class="p-3.5 rounded-2xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 cursor-pointer transition-all flex items-center justify-between group">
+                                        <div>
+                                            <h4 class="font-bold text-slate-800 group-hover:text-blue-700">📖 Alpha Waves (8–12 Hz)</h4>
+                                            <p class="text-slate-500 text-[11px]">ท่องจำตัวบท ป.พ.พ. / ป.อ. สมาธิแน่วแน่</p>
+                                        </div>
+                                        <i data-lucide="play-circle" class="w-5 h-5 text-blue-600"></i>
+                                    </div>
+
+                                    <div onclick="playBrainwave('theta')" class="p-3.5 rounded-2xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 cursor-pointer transition-all flex items-center justify-between group">
+                                        <div>
+                                            <h4 class="font-bold text-slate-800 group-hover:text-blue-700">💡 Theta Waves (4–7 Hz)</h4>
+                                            <p class="text-slate-500 text-[11px]">ช่วงเรียบเรียงความคิดเขียนตอบข้อสอบ</p>
+                                        </div>
+                                        <i data-lucide="play-circle" class="w-5 h-5 text-blue-600"></i>
+                                    </div>
+
+                                    <div onclick="playBrainwave('lofi')" class="p-3.5 rounded-2xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 cursor-pointer transition-all flex items-center justify-between group">
+                                        <div>
+                                            <h4 class="font-bold text-slate-800 group-hover:text-blue-700">☕ Lo-fi Chill Ambient</h4>
+                                            <p class="text-slate-500 text-[11px]">ผ่อนคลายช่วงพักสายตา Pomodoro</p>
+                                        </div>
+                                        <i data-lucide="play-circle" class="w-5 h-5 text-blue-600"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between">
+                                <span id="current-sound-title" class="text-xs font-semibold text-slate-600">เลือกคลื่นเสียงเพื่อเปิดเล่น</span>
+                                <button onclick="stopAudio()" class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs transition-all border border-red-200">
+                                    หยุดเสียง
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 4: COURSE & SECTION REVIEWS -->
+                <section id="section-course-reviews" class="space-y-6 hidden">
+                    <div class="glass-card-light p-6 sm:p-8 rounded-3xl space-y-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="award" class="w-6 h-6 text-amber-500"></i>
+                                    <span>ระบบรีวิวเซกชันและรายวิชา (Course & Section Reviews)</span>
+                                </h2>
+                                <p class="text-xs text-slate-500 mt-1">รีวิวเนื้อหา สไตล์การสอนของอาจารย์ ความยากข้อสอบ สำหรับการวางแผนลงทะเบียน</p>
+                            </div>
+                            <button onclick="openReviewModal()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 w-fit">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>เขียนรีวิวรายวิชา</span>
+                            </button>
+                        </div>
+
+                        <!-- Filter Controls (Exam Hub Architecture) -->
+                        <div class="glass-card-light p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                                <h3 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                    <i data-lucide="sliders-horizontal" class="w-4 h-4 text-amber-500"></i>
+                                    <span>ระบบค้นหารีวิวแบบละเอียด (Advanced Review Search)</span>
+                                </h3>
+                                <button onclick="resetReviewSearch()" class="text-xs font-semibold text-amber-600 hover:underline">ล้างตัวกรอง</button>
+                            </div>
+
+                            <div class="mb-2">
+                                <div class="relative">
+                                    <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-400"></i>
+                                    <input type="text" id="review-search-text" oninput="filterReviews()" placeholder="ค้นหาทั่วไปด้วยคำสำคัญ (ชื่อวิชา, ชื่ออาจารย์, คำรีวิว)..." class="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">1. รหัสวิชา</label>
+                                    <input type="text" id="review-search-code" oninput="filterReviews()" placeholder="เช่น น.101" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">2. ชื่อวิชา</label>
+                                    <input type="text" id="review-search-name" oninput="filterReviews()" placeholder="เช่น นิติกรรม" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">3. เซกชัน (Section)</label>
+                                    <input type="text" id="review-search-sec" oninput="filterReviews()" placeholder="เช่น Sec 01" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">4. อาจารย์ผู้สอน</label>
+                                    <input type="text" id="review-search-prof" oninput="filterReviews()" placeholder="ชื่ออาจารย์" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">5. มหาวิทยาลัย</label>
+                                    <select id="review-search-uni" onchange="filterReviews()" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 font-medium">
+                                        <option value="">ทั้งหมด</option>
+                                        <option value="มหาวิทยาลัยธรรมศาสตร์">มหาวิทยาลัยธรรมศาสตร์</option>
+                                        <option value="จุฬาลงกรณ์มหาวิทยาลัย">จุฬาลงกรณ์มหาวิทยาลัย</option>
+                                        <option value="มหาวิทยาลัยรามคำแหง">มหาวิทยาลัยรามคำแหง</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Review Cards Container -->
+                        <div id="reviews-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Dynamic Reviews -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 5: SUMMARY SHEETS HUB (DETAILED SEARCH ENHANCED) -->
+                <section id="section-summary-sheets" class="space-y-6 hidden">
+                    <div class="glass-card-light p-6 sm:p-8 rounded-3xl space-y-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="book-open-check" class="w-6 h-6 text-emerald-600"></i>
+                                    <span>คลังแบ่งปันชีทสรุปส่วนบุคคล (Community Summary Hub)</span>
+                                </h2>
+                                <p class="text-xs text-slate-500 mt-1">ศูนย์รวมชีทสรุปบทกฎหมาย ค้นหาละเอียดตามรหัสวิชา เซกชัน และอาจารย์ผู้สอน</p>
+                            </div>
+                            <button onclick="openUploadSheetModal()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 w-fit">
+                                <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                                <span>แบ่งปันชีทสรุปของคุณ</span>
+                            </button>
+                        </div>
+
+                        <!-- Advanced Summary Sheets Filter Bar (Exam Hub Architecture) -->
+                        <div class="glass-card-light p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                                <h3 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                    <i data-lucide="sliders-horizontal" class="w-4 h-4 text-emerald-600"></i>
+                                    <span>ระบบค้นหาชีทสรุปแบบละเอียด (Advanced Sheet Filter)</span>
+                                </h3>
+                                <button onclick="resetSheetSearch()" class="text-xs font-semibold text-emerald-600 hover:underline">ล้างตัวกรอง</button>
+                            </div>
+
+                            <div class="mb-2">
+                                <div class="relative">
+                                    <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-400"></i>
+                                    <input type="text" id="sheet-search-general" oninput="filterSheets()" placeholder="ค้นหาทั่วไปด้วยคำสำคัญ (หัวข้อชีท, คำอธิบาย, ผู้จัดทำ)..." class="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">1. รหัสวิชา</label>
+                                    <input type="text" id="sheet-search-code" oninput="filterSheets()" placeholder="เช่น น.101" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">2. ชื่อวิชา</label>
+                                    <input type="text" id="sheet-search-name" oninput="filterSheets()" placeholder="เช่น กฎหมายนิติกรรม" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">3. เซกชัน (Section)</label>
+                                    <input type="text" id="sheet-search-sec" oninput="filterSheets()" placeholder="เช่น Sec 010001" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">4. ผู้สอน / เจ้าของชีท</label>
+                                    <input type="text" id="sheet-search-prof" oninput="filterSheets()" placeholder="ชื่ออาจารย์ หรือผู้สรุป" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">5. มหาวิทยาลัย</label>
+                                    <select id="sheet-search-uni" onchange="filterSheets()" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
+                                        <option value="">ทั้งหมด</option>
+                                        <option value="มหาวิทยาลัยธรรมศาสตร์">มหาวิทยาลัยธรรมศาสตร์</option>
+                                        <option value="จุฬาลงกรณ์มหาวิทยาลัย">จุฬาลงกรณ์มหาวิทยาลัย</option>
+                                        <option value="มหาวิทยาลัยรามคำแหง">มหาวิทยาลัยรามคำแหง</option>
+                                        <option value="Community Upload">Community Upload</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Summary Cards Grid -->
+                        <div id="sheets-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Dynamic Sheet Cards -->
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+
+        <!-- CUSTOM TIMER MODAL DIALOG -->
+        <div id="custom-timer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="glass-card-light p-6 rounded-3xl max-w-xs w-full border border-slate-200 shadow-2xl space-y-4">
+                <h4 class="font-bold text-sm text-slate-800">กำหนดเวลา Pomodoro (นาที)</h4>
+                <input type="number" id="custom-timer-input" min="1" max="180" value="20" class="w-full p-2.5 text-center font-bold text-lg bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="flex gap-2">
+                    <button onclick="applyCustomTimer()" class="flex-1 py-2.5 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md">ตกลง</button>
+                    <button onclick="closeCustomTimerModal()" class="px-4 py-2.5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200">ยกเลิก</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- USER SETTINGS MODAL -->
+        <div id="user-settings-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="glass-card-light text-slate-800 p-6 sm:p-7 rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                    <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <i data-lucide="user-cog" class="w-5 h-5 text-blue-600"></i>
+                        <span>ตั้งค่าบัญชีผู้ใช้งาน (Account Settings)</span>
+                    </h3>
+                    <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+
+                <div class="flex border-b border-slate-200 gap-4 text-xs font-bold">
+                    <button onclick="switchSettingsTab('profile')" id="set-tab-profile" class="pb-2 text-blue-600 border-b-2 border-blue-600">ข้อมูลส่วนตัว</button>
+                    <button onclick="switchSettingsTab('security')" id="set-tab-security" class="pb-2 text-slate-400 border-b-2 border-transparent hover:text-slate-600">ความปลอดภัย</button>
+                    <button onclick="switchSettingsTab('pref')" id="set-tab-pref" class="pb-2 text-slate-400 border-b-2 border-transparent hover:text-slate-600">การแจ้งเตือน</button>
+                    <button onclick="switchSettingsTab('data')" id="set-tab-data" class="pb-2 text-slate-400 border-b-2 border-transparent hover:text-slate-600">จัดการข้อมูล</button>
+                </div>
+
+                <!-- PROFILE TAB -->
+                <div id="set-view-profile" class="space-y-4">
+                    <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                        <div id="user-avatar-display" class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-md">
+                            ⚖️
+                        </div>
+                        <div>
+                            <h4 id="profile-email-disp" class="font-bold text-sm text-slate-800">user@example.com</h4>
+                            <p id="profile-role-disp" class="text-xs text-slate-500">นักศึกษา (มหาวิทยาลัยธรรมศาสตร์)</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อที่แสดง (Display Name)</label>
+                            <input type="text" id="set-display-name" placeholder="เช่น นศ.นิติฯ สมชาย" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">ชั้นปีการศึกษา</label>
+                            <select id="set-year" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="ปี 1">ชั้นปีที่ 1</option>
+                                <option value="ปี 2">ชั้นปีที่ 2</option>
+                                <option value="ปี 3">ชั้นปีที่ 3</option>
+                                <option value="ปี 4">ชั้นปีที่ 4</option>
+                                <option value="ศิษย์เก่า / เนติบัณฑิต">ศิษย์เก่า / เนติบัณฑิต</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">สาขา / ความสนใจพิเศษ</label>
+                        <select id="set-field" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="กฎหมายแพ่งและพาณิชย์">กฎหมายแพ่งและพาณิชย์</option>
+                            <option value="กฎหมายอาญา">กฎหมายอาญา</option>
+                            <option value="กฎหมายมหาชน">กฎหมายมหาชน</option>
+                            <option value="กฎหมายระหว่างประเทศ">กฎหมายระหว่างประเทศ</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- SECURITY TAB -->
+                <div id="set-view-security" class="space-y-4 hidden">
+                    <div class="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-800 flex items-center gap-2">
+                        <i data-lucide="key" class="w-4 h-4 text-blue-600 flex-shrink-0"></i>
+                        <span>เปลี่ยนรหัสผ่านเพื่อความปลอดภัยของบัญชีผู้ใช้</span>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">รหัสผ่านปัจจุบัน</label>
+                            <input type="password" id="set-old-pass" placeholder="••••••••" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">รหัสผ่านใหม่</label>
+                            <input type="password" id="set-new-pass" placeholder="••••••••" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                    </div>
+                    <div class="pt-2 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
+                        <span>Session ล่าสุด: <strong class="text-slate-700">วันนี้ (ความปลอดภัยระดับสูง)</strong></span>
+                        <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded font-bold">Active</span>
+                    </div>
+                </div>
+
+                <!-- PREFERENCES TAB -->
+                <div id="set-view-pref" class="space-y-4 hidden">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                            <div>
+                                <h5 class="font-bold text-xs text-slate-800">การแจ้งเตือนตอบกลับการถกประเด็น</h5>
+                                <p class="text-[11px] text-slate-500">แจ้งเตือนเมื่อมีคนแสดงความเห็นต่อจากคุณ</p>
+                            </div>
+                            <input type="checkbox" checked class="w-4 h-4 accent-blue-600 rounded">
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                            <div>
+                                <h5 class="font-bold text-xs text-slate-800">เสียงแจ้งเตือน Pomodoro</h5>
+                                <p class="text-[11px] text-slate-500">เล่นเสียงสังเคราะห์ Chime เมื่อหมดเวลา</p>
+                            </div>
+                            <input type="checkbox" checked class="w-4 h-4 accent-blue-600 rounded">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DATA TAB -->
+                <div id="set-view-data" class="space-y-4 hidden">
+                    <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                        <h5 class="font-bold text-xs text-slate-800">ส่งออกข้อมูลส่วนบุคคล (Export Data)</h5>
+                        <p class="text-[11px] text-slate-500">ดาวน์โหลดตารางอ่านหนังสือ Task Management และประวัติการถกประเด็น</p>
+                        <button onclick="exportUserData()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>ส่งออกข้อมูล (JSON)</span>
+                        </button>
+                    </div>
+
+                    <div class="p-4 bg-red-50 border border-red-200 rounded-2xl space-y-3">
+                        <h5 class="font-bold text-xs text-red-700">ลบบัญชีผู้ใช้งาน (Delete Account)</h5>
+                        <p class="text-[11px] text-red-600/80">การดำเนินการนี้จะลบข้อมูลภาระงานและประวัติทั้งหมดอย่างถาวร</p>
+                        <button onclick="deleteAccount()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            <span>ลบบัญชีผู้ใช้งาน</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-3 border-t border-slate-200">
+                    <button onclick="saveUserSettings()" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>บันทึกการตั้งค่า</span>
+                    </button>
+                    <button onclick="closeSettingsModal()" class="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-200">
+                        ปิด
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- REPORT COMMENT MODAL -->
+        <div id="report-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="glass-card-light text-slate-800 p-6 rounded-3xl max-w-sm w-full border border-slate-200 shadow-2xl space-y-4">
+                <h4 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                    <i data-lucide="flag" class="w-4 h-4 text-red-500"></i>
+                    <span>รายงานความคิดเห็นที่ไม่พึงประสงค์</span>
+                </h4>
+                <input type="hidden" id="report-exam-id">
+                <input type="hidden" id="report-comment-id">
+                <div class="space-y-2 text-xs">
+                    <label class="block font-semibold text-slate-700">ระบุสาเหตุการรายงาน:</label>
+                    <select id="report-reason" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        <option value="ข้อมูลกฎหมายบิดเบือน">ให้ข้อมูลกฎหมายบิดเบือนอย่างรุนแรง</option>
+                        <option value="ภาษาสุภาพไม่เหมาะสม">ใช้ภาษาสุภาพไม่เหมาะสม / Hate Speech</option>
+                        <option value="สแปมหรือโฆษณา">ข้อความสแปม / โฆษณา</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="submitCommentReport()" class="flex-1 py-2 bg-red-600 text-white font-bold text-xs rounded-xl shadow-md">ส่งรายงาน</button>
+                    <button onclick="closeReportModal()" class="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200">ยกเลิก</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADD COURSE REVIEW MODAL -->
+        <div id="add-review-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="glass-card-light text-slate-800 p-6 rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                    <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+                        <i data-lucide="star" class="w-5 h-5 text-amber-500"></i>
+                        <span>เขียนรีวิวเซกชัน & รายวิชา</span>
+                    </h3>
+                    <button onclick="closeReviewModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveCourseReview(event)" class="space-y-3 text-xs">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">รหัสวิชา & ชื่อวิชา</label>
+                            <input type="text" id="rev-subject" required placeholder="เช่น น.101 กฎหมายนิติกรรม" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">เซกชัน (Section)</label>
+                            <input type="text" id="rev-sec" placeholder="เช่น Sec 010001" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">อาจารย์ผู้สอน</label>
+                            <input type="text" id="rev-prof" required placeholder="ชื่ออาจารย์ผู้สอน" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">มหาวิทยาลัย</label>
+                            <select id="rev-uni" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                                <option value="มหาวิทยาลัยธรรมศาสตร์">มหาวิทยาลัยธรรมศาสตร์</option>
+                                <option value="จุฬาลงกรณ์มหาวิทยาลัย">จุฬาลงกรณ์มหาวิทยาลัย</option>
+                                <option value="มหาวิทยาลัยรามคำแหง">มหาวิทยาลัยรามคำแหง</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">ชั้นปีที่แนะนำ</label>
+                            <select id="rev-year" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                                <option value="ปี 1">ชั้นปีที่ 1</option>
+                                <option value="ปี 2">ชั้นปีที่ 2</option>
+                                <option value="ปี 3">ชั้นปีที่ 3</option>
+                                <option value="ปี 4">ชั้นปีที่ 4</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">ความยากข้อสอบ</label>
+                            <select id="rev-diff" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                                <option value="ง่าย">ง่าย</option>
+                                <option value="ปานกลาง">ปานกลาง</option>
+                                <option value="ยาก">ยาก</option>
+                                <option value="ยากมาก (หิน)">ยากมาก (หิน)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">คะแนน (1-5)</label>
+                            <select id="rev-rating" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-amber-600">
+                                <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                                <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                                <option value="3">⭐⭐⭐ (3/5)</option>
+                                <option value="2">⭐⭐ (2/5)</option>
+                                <option value="1">⭐ (1/5)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">สไตล์การสอน & คะแนนเก็บ</label>
+                        <input type="text" id="rev-style" placeholder="เช่น เน้นวิเคราะห์ฎีกา มีเช็กชื่อสุ่ม 10 คะแนน" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">ข้อคิดเห็น / คำแนะนำถึงน้องๆ</label>
+                        <textarea id="rev-comment" required rows="3" placeholder="เขียนความรู้สึก เนื้อหาวิชา ข้อสอบออกแนวไหน..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"></textarea>
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-1">
+                        <input type="checkbox" id="rev-anon" class="accent-blue-600">
+                        <label for="rev-anon" class="text-slate-600">ไม่ระบุตัวตน (Anonymous)</label>
+                    </div>
+
+                    <div class="flex gap-2 pt-2">
+                        <button type="submit" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl shadow-md transition-all">
+                            ส่งรีวิว
+                        </button>
+                        <button type="button" onclick="closeReviewModal()" class="px-4 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl border border-slate-200">
+                            ยกเลิก
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- UPLOAD SUMMARY SHEET MODAL -->
+        <div id="upload-sheet-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="glass-card-light text-slate-800 p-6 rounded-3xl max-w-md w-full border border-slate-200 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                    <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-5 h-5 text-emerald-600"></i>
+                        <span>แบ่งปันชีทสรุปการเรียน</span>
+                    </h3>
+                    <button onclick="closeUploadSheetModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveSummarySheet(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">หัวข้อชีทสรุป</label>
+                        <input type="text" id="sheet-title" required placeholder="เช่น สรุป ป.พ.พ. นิติกรรมสัญญา มาตรา 150-171" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">รหัสวิชา</label>
+                            <input type="text" id="sheet-code" required placeholder="เช่น น.101" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">ชื่อวิชา</label>
+                            <input type="text" id="sheet-subject" required placeholder="เช่น กฎหมายนิติกรรม" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">เซกชัน (Section)</label>
+                            <input type="text" id="sheet-sec" placeholder="เช่น Sec 010001" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">อาจารย์ผู้สอน</label>
+                            <input type="text" id="sheet-prof" placeholder="ชื่ออาจารย์ผู้สอน" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">มหาวิทยาลัย</label>
+                        <select id="sheet-uni" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                            <option value="มหาวิทยาลัยธรรมศาสตร์">มหาวิทยาลัยธรรมศาสตร์</option>
+                            <option value="จุฬาลงกรณ์มหาวิทยาลัย">จุฬาลงกรณ์มหาวิทยาลัย</option>
+                            <option value="มหาวิทยาลัยรามคำแหง">มหาวิทยาลัยรามคำแหง</option>
+                            <option value="Community Upload">Community Upload</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">คำอธิบายสั้นๆ</label>
+                        <textarea id="sheet-desc" rows="2" placeholder="รายละเอียดของชีทสรุป เน้นบทไหนเป็นพิเศษ..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"></textarea>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">ลิงก์ไฟล์ หรือ Mockup File Upload</label>
+                        <input type="text" id="sheet-url" placeholder="https://drive.google.com/file/d/..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                    </div>
+                    <div class="flex gap-2 pt-2">
+                        <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-md transition-all">
+                            อัปโหลดชีทสรุป
+                        </button>
+                        <button type="button" onclick="closeUploadSheetModal()" class="px-4 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl border border-slate-200">
+                            ยกเลิก
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT ENGINE -->
+    <script>
+        // DATA STATE & STORAGE
+        const DOMAINS = {
+            TU: '@dome.tu.ac.th',
+            CU: '@student.chula.ac.th',
+            RU: '@rumail.ru.ac.th'
+        };
+
+        const UNI_NAMES = {
+            TU: 'มหาวิทยาลัยธรรมศาสตร์',
+            CU: 'จุฬาลงกรณ์มหาวิทยาลัย',
+            RU: 'มหาวิทยาลัยรามคำแหง'
+        };
+
+        let currentUser = null;
+        let authMode = 'login';
+        let authUserType = 'student';
+
+        function getRelativeDate(daysOffset) {
+            const d = new Date();
+            d.setDate(d.getDate() + daysOffset);
+            return d.toISOString().split('T')[0];
+        }
+
+        let tasks = [
+            { id: '1', name: 'อ่าน ป.พ.พ. ลักษณะนิติกรรมและสัญญา', category: 'Law', start: getRelativeDate(-3), end: getRelativeDate(4), progress: 60 },
+            { id: '2', name: 'ทบทวนองค์ประกอบความผิด อาญา 1', category: 'Law', start: getRelativeDate(0), end: getRelativeDate(7), progress: 30 },
+            { id: '3', name: 'ทำสไลด์นำเสนอวิชา GE101', category: 'GE', start: getRelativeDate(1), end: getRelativeDate(5), progress: 80 },
+            { id: '4', name: 'ซ้อมโต้วางมูลนิธินิติศาสตร์', category: 'Activity', start: getRelativeDate(3), end: getRelativeDate(9), progress: 10 }
+        ];
+
+        let exams = [
+            {
+                id: 101,
+                code: 'น. 101',
+                name: 'กฎหมายลักษณะนิติกรรมและสัญญา',
+                professor: 'ศ.ดร.สมชาย ใจดี',
+                university: 'มหาวิทยาลัยธรรมศาสตร์',
+                year: '2566',
+                question: 'นาย ก ทำสัญญาซื้อขายรถยนต์กับ นาย ข โดยนาย ก ถูก นาย ค ข่มขู่ให้ทำ สัญญานี้มีผลอย่างไรตามกฎหมาย?',
+                answerKey: 'การข่มขู่ทำให้นิติกรรมเป็นโมฆียะ ตาม ป.พ.พ. มาตรา 164 นาย ก สามารถบอกลบล้างนิติกรรมได้ภายในอายุความ',
+                rubric: '1. อ้างอิง ป.พ.พ. มาตรา 164 (5 คะแนน)\n2. ปรับบทเรื่องโมฆียะและการบอกลบล้าง (5 คะแนน)',
+                status: 'Approved',
+                comments: [
+                    { id: 'c1', user: 'std_tu@dome.tu.ac.th', text: 'ถ้าเป็นกรณีข่มขู่โดยบุคคลภายนอก สัญญาเป็นโมฆียะทันทีเลยใช่ไหมครับ?', time: '2 ชั่วโมงที่แล้ว', agrees: 5, reports: 0, reportedBy: [] },
+                    { id: 'c2', user: 'law_expert@dome.tu.ac.th', text: 'ถูกต้องครับ ตามมาตรา 164 การข่มขู่ไม่ว่ากระทำโดยคู่กรณีหรือบุคคลภายนอก ตราบใดที่ทำให้อีกฝ่ายเกิดความกลัว นิติกรรมเป็นโมฆียะทั้งหมด', time: '1 ชั่วโมงที่แล้ว', agrees: 12, reports: 0, reportedBy: [] }
+                ]
+            },
+            {
+                id: 102,
+                code: '2401102',
+                name: 'กฎหมายอาญาภาคทั่วไป',
+                professor: 'รศ.ดร.วิชัย นิติศาสตร์',
+                university: 'จุฬาลงกรณ์มหาวิทยาลัย',
+                year: '2565',
+                question: 'นาย A เล็งปืนไปที่ นาย B แต่ปืนขัดข้องยิงไม่ออก นาย A มีความผิดฐานใด?',
+                answerKey: 'นาย A มีความผิดฐานพยายามฆ่าผู้อื่น ตาม ป.อ. มาตรา 288 ประกอบมาตรา 80 แม้ปืนขัดข้องก็ถือว่าได้กระทำไปถึงขั้นเป็นขั้นตอนสุดท้ายแล้ว',
+                rubric: '1. มาตรา 288 ประกอบ 80 (5 คะแนน)\n2. การวิเคราะห์องค์ประกอบความผิด (5 คะแนน)',
+                status: 'Approved',
+                comments: []
+            }
+        ];
+
+        let userProfileData = {
+            displayName: 'นักศึกษานิติศาสตร์',
+            year: 'ปี 2',
+            field: 'กฎหมายแพ่งและพาณิชย์'
+        };
+
+        let courseReviews = [
+            {
+                id: 'r1',
+                subject: 'น.101 กฎหมายลักษณะนิติกรรมและสัญญา',
+                sec: 'Sec 010001',
+                professor: 'ศ.ดร.สมชาย ใจดี',
+                university: 'มหาวิทยาลัยธรรมศาสตร์',
+                year: 'ปี 1',
+                difficulty: 'ยาก',
+                rating: 5,
+                style: 'เน้นวิเคราะห์ฎีกา มีเช็กชื่อสุ่ม 10 คะแนน',
+                comment: 'อาจารย์สอนดีมาก อธิบายมโนทัศน์นิติกรรมเคลียร์สุดๆ ข้อสอบเน้นการวินิจฉัยตามหลักกฎหมายแท้ๆ',
+                author: 'นศ.ปี 2 (TU)'
+            }
+        ];
+
+        let summarySheets = [
+            {
+                id: 's1',
+                title: 'สรุป ป.พ.พ. นิติกรรมสัญญา มาตรา 150-171 (ฉบับสอบไฟนอล)',
+                code: 'น.101',
+                subject: 'กฎหมายลักษณะนิติกรรมและสัญญา',
+                sec: 'Sec 010001',
+                professor: 'ศ.ดร.สมชาย ใจดี',
+                university: 'มหาวิทยาลัยธรรมศาสตร์',
+                desc: 'เน้นมาตราสำคัญ 150, 151, 154, 155 พร้อมโครงสร้างการเขียนตอบข้อสอบกฎหมาย',
+                author: 'law_tu_topstudent',
+                downloads: 342,
+                fileType: 'PDF'
+            }
+        ];
+
+        // TASK & GANTT MANAGEMENT (DATE-CENTRIC TIMELINE TABLE)
+        function initGanttChart() {
+            const container = document.getElementById('ganttTableContainer');
+            if (!container) return;
+
+            // Compute Date Range (7 Days Range around tasks)
+            let minTimestamp = Infinity;
+            let maxTimestamp = -Infinity;
+
+            tasks.forEach(t => {
+                const s = new Date(t.start).getTime();
+                const e = new Date(t.end).getTime();
+                if (s < minTimestamp) minTimestamp = s;
+                if (e > maxTimestamp) maxTimestamp = e;
+            });
+
+            const todayObj = new Date();
+            todayObj.setHours(0, 0, 0, 0);
+            const todayStr = todayObj.toISOString().split('T')[0];
+
+            if (minTimestamp === Infinity) {
+                minTimestamp = new Date(todayObj.getTime() - (2 * 86400000)).getTime();
+                maxTimestamp = new Date(todayObj.getTime() + (10 * 86400000)).getTime();
+            } else {
+                minTimestamp = Math.min(minTimestamp, todayObj.getTime() - (2 * 86400000));
+                maxTimestamp = Math.max(maxTimestamp, todayObj.getTime() + (8 * 86400000));
+            }
+
+            // Build array of dates
+            const dateList = [];
+            let currTime = minTimestamp;
+            while (currTime <= maxTimestamp) {
+                dateList.push(new Date(currTime));
+                currTime += 86400000;
+            }
+
+            // Render Table HTML
+            let tableHTML = `
+                <table class="w-full text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100/90 border-b border-slate-200">
+                            <th class="p-2 text-left font-bold text-slate-700 min-w-[160px] sticky left-0 bg-slate-100 z-10">หัวข้อภาระงาน</th>
+                            ${dateList.map(d => {
+                                const dStr = d.toISOString().split('T')[0];
+                                const isToday = dStr === todayStr;
+                                const dayNum = d.getDate();
+                                const monthNum = d.getMonth() + 1;
+                                return `
+                                    <th class="p-2 text-center font-bold min-w-[42px] border-l border-slate-200 ${isToday ? 'bg-blue-600 text-white' : 'text-slate-600'}">
+                                        <div class="text-[10px] opacity-80">${monthNum}/${dayNum}</div>
+                                        <div class="text-[11px] font-black">${isToday ? 'วันนี้' : ''}</div>
+                                    </th>
+                                `;
+                            }).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+            `;
+
+            if (tasks.length === 0) {
+                tableHTML += `<tr><td colspan="${dateList.length + 1}" class="p-4 text-center text-slate-400">ไม่มีรายการภาระงาน</td></tr>`;
+            } else {
+                tasks.forEach(t => {
+                    const tStart = new Date(t.start).getTime();
+                    const tEnd = new Date(t.end).getTime();
+
+                    let categoryBg = 'bg-blue-600';
+                    if (t.category === 'GE') categoryBg = 'bg-emerald-500';
+                    else if (t.category === 'Activity') categoryBg = 'bg-amber-500';
+                    else if (t.category === 'Personal') categoryBg = 'bg-purple-500';
+
+                    tableHTML += `
+                        <tr class="hover:bg-slate-50 transition-all">
+                            <td class="p-2.5 font-bold text-slate-800 sticky left-0 bg-white shadow-sm border-r border-slate-200 z-10">
+                                <div class="line-clamp-1">${t.name}</div>
+                                <div class="text-[10px] font-normal text-slate-400">คืบหน้า ${t.progress}%</div>
+                            </td>
+                    `;
+
+                    dateList.forEach(d => {
+                        const dateTime = d.getTime();
+                        const dStr = d.toISOString().split('T')[0];
+                        const isToday = dStr === todayStr;
+                        const isInTaskRange = dateTime >= tStart && dateTime <= tEnd;
+
+                        if (isInTaskRange) {
+                            tableHTML += `
+                                <td class="p-1 text-center border-l border-slate-100 ${isToday ? 'bg-blue-50/80' : ''}">
+                                    <div class="w-full h-6 ${categoryBg} text-white font-black text-[9px] rounded flex items-center justify-center shadow-sm" title="${t.name} (${t.start} ถึง ${t.end})">
+                                        ${dStr === t.start ? 'เริ่ม' : (dStr === t.end ? 'จบ' : '•')}
+                                    </div>
+                                </td>
+                            `;
+                        } else {
+                            tableHTML += `
+                                <td class="p-1 border-l border-slate-100 ${isToday ? 'bg-blue-50/40' : ''}"></td>
+                            `;
+                        }
+                    });
+
+                    tableHTML += `</tr>`;
+                });
+            }
+
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = tableHTML;
+        }
+
+        function renderTasks() {
+            const tbody = document.getElementById('tasks-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            let totalLaw = 0;
+            let sumProg = 0;
+            let completedCount = 0;
+            let inProgressCount = 0;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayContainer = document.getElementById('today-tasks-container');
+            if (todayContainer) todayContainer.innerHTML = '';
+            let todayTaskFound = false;
+
+            tasks.forEach(t => {
+                const prog = parseInt(t.progress);
+                sumProg += prog;
+                if (t.category === 'Law') totalLaw++;
+                if (prog === 100) completedCount++;
+                else inProgressCount++;
+
+                if (t.start <= todayStr && t.end >= todayStr && todayContainer) {
+                    todayTaskFound = true;
+                    const todayCard = document.createElement('div');
+                    todayCard.className = "p-3 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-1.5";
+                    todayCard.innerHTML = `
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-bold text-slate-800 line-clamp-1">${t.name}</span>
+                            <span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-extrabold rounded">${t.progress}%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-blue-600 h-full" style="width: ${t.progress}%"></div>
+                        </div>
+                        <p class="text-[10px] text-slate-400">กำหนดส่ง: ${t.end}</p>
+                    `;
+                    todayContainer.appendChild(todayCard);
+                }
+
+                const endDateObj = new Date(t.end);
+                const todayObj = new Date(todayStr);
+                const diffTime = endDateObj - todayObj;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                let dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">เหลือ ${diffDays} วัน</span>`;
+                if (prog === 100) dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">เสร็จสิ้น</span>`;
+                else if (diffDays < 0) dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">เกินกำหนด</span>`;
+                else if (diffDays <= 3) dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">เหลือ ${diffDays} วัน (ด่วน)</span>`;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 border-b border-slate-100 text-xs";
+                tr.innerHTML = `
+                    <td class="p-3 font-semibold text-slate-800">${t.name}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${t.category === 'Law' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}">${t.category}</span></td>
+                    <td class="p-3 text-slate-500 text-[11px]">
+                        <div>${t.start} ถึง ${t.end}</div>
+                        <div class="mt-0.5">${dayBadge}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-20 bg-slate-200 h-2 rounded-full overflow-hidden">
+                                <div class="bg-blue-600 h-full" style="width: ${t.progress}%"></div>
+                            </div>
+                            <span class="font-bold text-xs text-blue-600">${t.progress}%</span>
+                        </div>
+                    </td>
+                    <td class="p-3 text-right">
+                        <button onclick="editTask('${t.id}')" class="text-blue-600 hover:underline text-xs mr-2">แก้ไข</button>
+                        <button onclick="deleteTask('${t.id}')" class="text-red-500 hover:underline text-xs">ลบ</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (!todayTaskFound && todayContainer) {
+                todayContainer.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">ไม่มีภาระงานที่ต้องทำในวันนี้</p>`;
+            }
+
+            const avgProg = tasks.length ? Math.round(sumProg / tasks.length) : 0;
+            const headerPercent = document.getElementById('header-total-progress-percent');
+            if (headerPercent) headerPercent.innerText = `${avgProg}%`;
+            
+            const headerBar = document.getElementById('header-total-progress-bar');
+            if (headerBar) headerBar.style.width = `${avgProg}%`;
+
+            const statTotal = document.getElementById('stat-total-tasks');
+            if (statTotal) statTotal.innerText = tasks.length;
+
+            const statInProg = document.getElementById('stat-in-progress-tasks');
+            if (statInProg) statInProg.innerText = inProgressCount;
+
+            const statComp = document.getElementById('stat-completed-tasks');
+            if (statComp) statComp.innerText = completedCount;
+
+            const statLaw = document.getElementById('stat-law-tasks');
+            if (statLaw) statLaw.innerText = totalLaw;
+
+            initGanttChart();
+        }
+
+        let ganttChartObj = null;
+
+        function saveTask(e) {
+            e.preventDefault();
+            const id = document.getElementById('task-id').value;
+            const name = document.getElementById('task-name').value;
+            const category = document.getElementById('task-category').value;
+            const start = document.getElementById('task-start').value;
+            const end = document.getElementById('task-end').value;
+            const progress = document.getElementById('task-progress').value;
+
+            if (id) {
+                const idx = tasks.findIndex(t => t.id === id);
+                if (idx !== -1) {
+                    tasks[idx] = { id, name, category, start, end, progress: parseInt(progress) };
+                }
+            } else {
+                tasks.push({
+                    id: Date.now().toString(),
+                    name,
+                    category,
+                    start,
+                    end,
+                    progress: parseInt(progress)
+                });
+            }
+
+            resetTaskForm();
+            renderTasks();
+        }
+
+        function resetTaskForm() {
+            document.getElementById('task-id').value = '';
+            document.getElementById('task-name').value = '';
+            document.getElementById('task-category').value = 'Law';
+            document.getElementById('task-start').value = getRelativeDate(0);
+            document.getElementById('task-end').value = getRelativeDate(7);
+            document.getElementById('task-progress').value = 0;
+            document.getElementById('task-progress-val').innerText = '0%';
+            document.getElementById('task-submit-btn').innerHTML = `<i data-lucide="save" class="w-4 h-4"></i><span>บันทึก Task</span>`;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+            document.getElementById('task-id').value = task.id;
+            document.getElementById('task-name').value = task.name;
+            document.getElementById('task-category').value = task.category;
+            document.getElementById('task-start').value = task.start;
+            document.getElementById('task-end').value = task.end;
+            document.getElementById('task-progress').value = task.progress;
+            document.getElementById('task-progress-val').innerText = task.progress + '%';
+            document.getElementById('task-submit-btn').innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>อัปเดต Task</span>`;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+        }
+
+        // AUTH & NAVIGATION HANDLERS
+        function switchAuthTab(mode) {
+            authMode = mode;
+            const loginBtn = document.getElementById('tab-login-btn');
+            const regBtn = document.getElementById('tab-reg-btn');
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
+
+            if (mode === 'login') {
+                loginBtn.className = "flex-1 py-3.5 text-xs font-extrabold text-center border-b-2 border-blue-600 text-blue-600 flex items-center justify-center gap-1.5 transition-all";
+                regBtn.className = "flex-1 py-3.5 text-xs font-extrabold text-center border-b-2 border-transparent text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1.5 transition-all";
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+            } else {
+                regBtn.className = "flex-1 py-3.5 text-xs font-extrabold text-center border-b-2 border-blue-600 text-blue-600 flex items-center justify-center gap-1.5 transition-all";
+                loginBtn.className = "flex-1 py-3.5 text-xs font-extrabold text-center border-b-2 border-transparent text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1.5 transition-all";
+                regForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+            }
+        }
+
+        function setAuthUserType(type) {
+            authUserType = type;
+            const studBtn = document.getElementById('type-student-btn');
+            const genBtn = document.getElementById('type-general-btn');
+            const uniSelectContainer = document.getElementById('login-uni-select-container');
+            const regUniSelectContainer = document.getElementById('reg-uni-select-container');
+            const loginStudentHint = document.getElementById('login-student-hint');
+            const regStudentHint = document.getElementById('reg-student-hint');
+            const regDomainBadge = document.getElementById('reg-domain-badge');
+
+            if (type === 'student') {
+                studBtn.className = "py-2.5 px-3 text-xs font-bold rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1.5 shadow-sm transition-all";
+                genBtn.className = "py-2.5 px-3 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-all";
+                if (uniSelectContainer) uniSelectContainer.classList.remove('hidden');
+                if (regUniSelectContainer) regUniSelectContainer.classList.remove('hidden');
+                if (loginStudentHint) loginStudentHint.classList.remove('hidden');
+                if (regStudentHint) regStudentHint.classList.remove('hidden');
+                if (regDomainBadge) regDomainBadge.classList.remove('hidden');
+                updateLoginDomainHint();
+                updateRegDomainHint();
+            } else {
+                genBtn.className = "py-2.5 px-3 text-xs font-bold rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1.5 shadow-sm transition-all";
+                studBtn.className = "py-2.5 px-3 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-all";
+                if (uniSelectContainer) uniSelectContainer.classList.add('hidden');
+                if (regUniSelectContainer) regUniSelectContainer.classList.add('hidden');
+                if (loginStudentHint) loginStudentHint.classList.add('hidden');
+                if (regStudentHint) regStudentHint.classList.add('hidden');
+                if (regDomainBadge) regDomainBadge.classList.add('hidden');
+                
+                const loginEmail = document.getElementById('login-email');
+                const regEmail = document.getElementById('reg-email');
+                if (loginEmail) loginEmail.placeholder = 'example@gmail.com';
+                if (regEmail) regEmail.placeholder = 'yourname@gmail.com';
+            }
+        }
+
+        function updateLoginDomainHint() {
+            if (authUserType !== 'student') return;
+            const uniSelect = document.getElementById('login-uni');
+            if (!uniSelect) return;
+            const uni = uniSelect.value;
+            const loginEmail = document.getElementById('login-email');
+            const placeholders = {
+                TU: 'student@dome.tu.ac.th',
+                CU: 'student@student.chula.ac.th',
+                RU: 'student@rumail.ru.ac.th'
+            };
+            if (loginEmail && placeholders[uni]) {
+                loginEmail.placeholder = placeholders[uni];
+            }
+        }
+
+        function updateRegDomainHint() {
+            if (authUserType !== 'student') return;
+            const uniSelect = document.getElementById('reg-uni');
+            if (!uniSelect) return;
+            const uni = uniSelect.value;
+            const reqDomainText = document.getElementById('required-domain-text');
+            const regEmail = document.getElementById('reg-email');
+            const placeholders = {
+                TU: 'student@dome.tu.ac.th',
+                CU: 'student@student.chula.ac.th',
+                RU: 'student@rumail.ru.ac.th'
+            };
+            if (reqDomainText && DOMAINS[uni]) {
+                reqDomainText.innerText = DOMAINS[uni];
+            }
+            if (regEmail && placeholders[uni]) {
+                regEmail.placeholder = placeholders[uni];
+            }
+        }
+
+        function updateDomainHint() {
+            updateRegDomainHint();
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const uniSelect = document.getElementById('login-uni');
+            const uniKey = uniSelect ? uniSelect.value : 'TU';
+
+            if (authUserType === 'student') {
+                const expected = DOMAINS[uniKey];
+                if (!email.toLowerCase().endsWith(expected)) {
+                    showAuthError(`อีเมลนักศึกษาต้องลงท้ายด้วย ${expected}`);
+                    return;
+                }
+            }
+
+            currentUser = {
+                email,
+                type: authUserType,
+                university: authUserType === 'student' ? UNI_NAMES[uniKey] : 'บุคคลทั่วไป'
+            };
+            showDashboard();
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const email = document.getElementById('reg-email').value.trim();
+            const uniSelect = document.getElementById('reg-uni');
+            const uniKey = uniSelect ? uniSelect.value : 'TU';
+
+            if (authUserType === 'student') {
+                const expected = DOMAINS[uniKey];
+                if (!email.toLowerCase().endsWith(expected)) {
+                    showAuthError(`อีเมลสมัครต้องลงท้ายด้วย ${expected}`);
+                    return;
+                }
+            }
+
+            currentUser = {
+                email,
+                type: authUserType,
+                university: authUserType === 'student' ? UNI_NAMES[uniKey] : 'บุคคลทั่วไป'
+            };
+            showDashboard();
+        }
+
+        function showAuthError(msg) {
+            const errBox = document.getElementById('auth-error-msg');
+            const errText = document.getElementById('auth-error-text');
+            if (errBox && errText) {
+                errText.innerText = msg;
+                errBox.classList.remove('hidden');
+            }
+        }
+
+        function showDashboard() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+
+            document.getElementById('nav-user-email').innerText = currentUser.email;
+            document.getElementById('nav-user-badge').innerText = currentUser.university;
+
+            renderTasks();
+            renderExams();
+            renderReviews();
+            renderSheets();
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById('main-app').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+        }
+
+        function switchTab(tabName) {
+            const tabs = ['gantt', 'exambank', 'pomodoro', 'course-reviews', 'summary-sheets'];
+            tabs.forEach(t => {
+                const section = document.getElementById(`section-${t}`);
+                const btn = document.getElementById(`nav-tab-${t}`);
+                if (section) {
+                    if (t === tabName) section.classList.remove('hidden');
+                    else section.classList.add('hidden');
+                }
+                if (btn) {
+                    if (t === tabName) {
+                        btn.className = "nav-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md transition-all";
+                    } else {
+                        btn.className = "nav-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-all";
+                    }
+                }
+            });
+
+            if (tabName === 'gantt') {
+                setTimeout(() => {
+                    initGanttChart();
+                }, 100);
+            }
+        }
+
+        // EXAM HUB FUNCTIONS
+        function switchExamSubTab(sub) {
+            ['search', 'upload', 'approval'].forEach(s => {
+                const view = document.getElementById(`exam-subtab-${s}`);
+                const btn = document.getElementById(`exam-tab-${s}`);
+                if (view) {
+                    if (s === sub) view.classList.remove('hidden');
+                    else view.classList.add('hidden');
+                }
+                if (btn) {
+                    if (s === sub) {
+                        btn.className = "px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-blue-600 text-white shadow-md transition-all";
+                    } else {
+                        btn.className = "px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all border border-slate-200";
+                    }
+                }
+            });
+        }
+
+        function renderExams() {
+            const container = document.getElementById('exams-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const gen = document.getElementById('search-general')?.value.toLowerCase() || '';
+            const code = document.getElementById('search-code')?.value.toLowerCase() || '';
+            const name = document.getElementById('search-name')?.value.toLowerCase() || '';
+            const prof = document.getElementById('search-prof')?.value.toLowerCase() || '';
+            const uni = document.getElementById('search-uni')?.value || '';
+            const year = document.getElementById('search-year')?.value.toLowerCase() || '';
+
+            const filtered = exams.filter(e => {
+                if (e.status !== 'Approved') return false;
+                if (gen && !e.name.toLowerCase().includes(gen) && !e.code.toLowerCase().includes(gen) && !e.question.toLowerCase().includes(gen)) return false;
+                if (code && !e.code.toLowerCase().includes(code)) return false;
+                if (name && !e.name.toLowerCase().includes(name)) return false;
+                if (prof && !e.professor.toLowerCase().includes(prof)) return false;
+                if (uni && e.university !== uni) return false;
+                if (year && !e.year.toLowerCase().includes(year)) return false;
+                return true;
+            });
+
+            filtered.forEach(e => {
+                const card = document.createElement('div');
+                card.className = "glass-card-light p-6 rounded-3xl space-y-4";
+                
+                let commentsHTML = e.comments.map(c => `
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-1">
+                        <div class="flex justify-between items-center text-slate-500">
+                            <span class="font-bold text-slate-700">${c.user}</span>
+                            <span>${c.time}</span>
+                        </div>
+                        <p class="text-slate-800">${c.text}</p>
+                        <div class="flex items-center gap-3 pt-1 text-[11px]">
+                            <button onclick="agreeComment(${e.id}, '${c.id}')" class="text-blue-600 font-bold hover:underline">👍 เห็นด้วย (${c.agrees})</button>
+                            <button onclick="openReportModal(${e.id}, '${c.id}')" class="text-slate-400 hover:text-red-500">🚩 รายงาน</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                card.innerHTML = `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-3 gap-2">
+                        <div>
+                            <span class="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-black mr-2">${e.code}</span>
+                            <span class="font-bold text-base text-slate-800">${e.name}</span>
+                        </div>
+                        <span class="text-xs text-slate-500">${e.university} | ปี ${e.year}</span>
+                    </div>
+                    <div class="text-xs text-slate-600 space-y-1">
+                        <p><strong>อาจารย์ผู้สอน:</strong> ${e.professor}</p>
+                        <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-slate-800 leading-relaxed">
+                            ${e.question}
+                        </div>
+                    </div>
+                    <div class="pt-2">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">พื้นที่ฝึกเขียนตอบข้อสอบ:</label>
+                        <textarea rows="3" placeholder="เขียนปรับบทกฎหมายและวินิจฉัย..." class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                    <div class="flex items-center justify-between pt-2">
+                        <button onclick="toggleAnswerKey('ans-${e.id}')" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
+                            <span>👁️ แสดง/ซ่อน ธงคำตอบ & Rubric</span>
+                        </button>
+                    </div>
+                    <div id="ans-${e.id}" class="hidden p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs space-y-2 text-emerald-900">
+                        <h5 class="font-bold text-emerald-800">ธงคำตอบแนวทางวินิจฉัย:</h5>
+                        <p class="whitespace-pre-line">${e.answerKey}</p>
+                        <h5 class="font-bold text-emerald-800 pt-2">Scoring Rubric:</h5>
+                        <p class="whitespace-pre-line">${e.rubric}</p>
+                    </div>
+                    <div class="pt-3 border-t border-slate-200 space-y-3">
+                        <h5 class="font-bold text-xs text-slate-700">Academic Discussion (${e.comments.length})</h5>
+                        <div class="space-y-2">${commentsHTML}</div>
+                        <div class="flex gap-2">
+                            <input type="text" id="comment-input-${e.id}" placeholder="แสดงความเห็นหรือตั้งคำถามกฎหมาย..." class="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                            <button onclick="addComment(${e.id})" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow">ส่ง</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterExams() {
+            renderExams();
+        }
+
+        function resetExamSearch() {
+            ['search-general', 'search-code', 'search-name', 'search-prof', 'search-year'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const uniSelect = document.getElementById('search-uni');
+            if (uniSelect) uniSelect.value = '';
+            renderExams();
+        }
+
+        function toggleAnswerKey(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('hidden');
+        }
+
+        function addComment(examId) {
+            const input = document.getElementById(`comment-input-${examId}`);
+            if (!input || !input.value.trim()) return;
+
+            const exam = exams.find(e => e.id === examId);
+            if (exam) {
+                exam.comments.push({
+                    id: 'c' + Date.now(),
+                    user: currentUser ? currentUser.email : 'student@dome.tu.ac.th',
+                    text: input.value.trim(),
+                    time: 'เมื่อกี้',
+                    agrees: 0,
+                    reports: 0,
+                    reportedBy: []
+                });
+                renderExams();
+            }
+        }
+
+        function agreeComment(examId, commentId) {
+            const exam = exams.find(e => e.id === examId);
+            if (exam) {
+                const comment = exam.comments.find(c => c.id === commentId);
+                if (comment) {
+                    comment.agrees++;
+                    renderExams();
+                }
+            }
+        }
+
+        function openReportModal(examId, commentId) {
+            document.getElementById('report-exam-id').value = examId;
+            document.getElementById('report-comment-id').value = commentId;
+            document.getElementById('report-modal').classList.remove('hidden');
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal').classList.add('hidden');
+        }
+
+        function submitCommentReport() {
+            const examId = parseInt(document.getElementById('report-exam-id').value);
+            const commentId = document.getElementById('report-comment-id').value;
+            const exam = exams.find(e => e.id === examId);
+            if (exam) {
+                const comment = exam.comments.find(c => c.id === commentId);
+                if (comment) {
+                    comment.reports++;
+                }
+            }
+            closeReportModal();
+            renderExams();
+        }
+
+        function handleExamUpload(e) {
+            e.preventDefault();
+            const code = document.getElementById('upload-code').value;
+            const name = document.getElementById('upload-name').value;
+            const prof = document.getElementById('upload-prof').value;
+            const year = document.getElementById('upload-year').value;
+            const question = document.getElementById('upload-question').value;
+            const answerKey = document.getElementById('upload-answer').value;
+            const rubric = document.getElementById('upload-rubric').value;
+
+            exams.push({
+                id: Date.now(),
+                code,
+                name,
+                professor: prof,
+                university: 'ข้อสอบส่วนบุคคล (Personal / Community Uploads)',
+                year,
+                question,
+                answerKey: answerKey || 'ยังไม่มีเฉลยจากผู้จำลอง',
+                rubric: rubric || 'ยังไม่มี Rubric',
+                status: 'Pending Admin Approval',
+                comments: []
+            });
+
+            alert('ส่งข้อสอบสำเร็จแล้ว! อยู่ในสถานะรอการอนุมัติจากผู้ดูแลระบบ');
+            switchExamSubTab('search');
+            renderExams();
+        }
+
+        // SUMMARY SHEETS FUNCTIONS
+        function renderSheets() {
+            const grid = document.getElementById('sheets-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            const gen = document.getElementById('sheet-search-general')?.value.toLowerCase() || '';
+            const code = document.getElementById('sheet-search-code')?.value.toLowerCase() || '';
+            const name = document.getElementById('sheet-search-name')?.value.toLowerCase() || '';
+            const sec = document.getElementById('sheet-search-sec')?.value.toLowerCase() || '';
+            const prof = document.getElementById('sheet-search-prof')?.value.toLowerCase() || '';
+            const uni = document.getElementById('sheet-search-uni')?.value || '';
+
+            const filtered = summarySheets.filter(s => {
+                if (gen && !s.title.toLowerCase().includes(gen) && !s.desc.toLowerCase().includes(gen) && !s.author.toLowerCase().includes(gen) && !s.code.toLowerCase().includes(gen)) return false;
+                if (code && !s.code.toLowerCase().includes(code)) return false;
+                if (name && !s.subject.toLowerCase().includes(name) && !s.title.toLowerCase().includes(name)) return false;
+                if (sec && !s.sec.toLowerCase().includes(sec)) return false;
+                if (prof && !s.professor.toLowerCase().includes(prof) && !s.author.toLowerCase().includes(prof)) return false;
+                if (uni && s.university !== uni) return false;
+                return true;
+            });
+
+            filtered.forEach(s => {
+                const card = document.createElement('div');
+                card.className = "glass-card-light p-5 rounded-3xl space-y-3 flex flex-col justify-between";
+                card.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-black">${s.code}</span>
+                            <span class="text-[11px] font-bold text-slate-400">${s.fileType}</span>
+                        </div>
+                        <h4 class="font-bold text-sm text-slate-800 line-clamp-2">${s.title}</h4>
+                        <p class="text-xs text-slate-500 leading-relaxed">${s.desc}</p>
+                    </div>
+                    <div class="pt-3 border-t border-slate-200 text-[11px] text-slate-500 space-y-1">
+                        <div class="flex justify-between">
+                            <span>ผู้สอน: <strong>${s.professor || '-'}</strong></span>
+                            <span>เซก: <strong>${s.sec || '-'}</strong></span>
+                        </div>
+                        <div class="flex justify-between items-center pt-2">
+                            <span class="font-semibold text-emerald-600">📥 ดาวน์โหลด (${s.downloads})</span>
+                            <button onclick="downloadSheet('${s.id}')" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded-xl shadow text-xs">พรีวิว / โหลด</button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function filterSheets() {
+            renderSheets();
+        }
+
+        function resetSheetSearch() {
+            ['sheet-search-general', 'sheet-search-code', 'sheet-search-name', 'sheet-search-sec', 'sheet-search-prof'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const uni = document.getElementById('sheet-search-uni');
+            if (uni) uni.value = '';
+            renderSheets();
+        }
+
+        function openUploadSheetModal() {
+            document.getElementById('upload-sheet-modal').classList.remove('hidden');
+        }
+
+        function closeUploadSheetModal() {
+            document.getElementById('upload-sheet-modal').classList.add('hidden');
+        }
+
+        function saveSummarySheet(e) {
+            e.preventDefault();
+            summarySheets.push({
+                id: 's' + Date.now(),
+                title: document.getElementById('sheet-title').value,
+                code: document.getElementById('sheet-code').value,
+                subject: document.getElementById('sheet-subject').value,
+                sec: document.getElementById('sheet-sec').value,
+                professor: document.getElementById('sheet-prof').value,
+                university: document.getElementById('sheet-uni').value,
+                desc: document.getElementById('sheet-desc').value,
+                author: currentUser ? currentUser.email : 'Community User',
+                downloads: 0,
+                fileType: 'PDF'
+            });
+            closeUploadSheetModal();
+            renderSheets();
+        }
+
+        function downloadSheet(id) {
+            const sheet = summarySheets.find(s => s.id === id);
+            if (sheet) {
+                sheet.downloads++;
+                renderSheets();
+                alert(`เปิดพรีวิวไฟล์: ${sheet.title}`);
+            }
+        }
+
+        // REVIEWS FUNCTIONS
+        function renderReviews() {
+            const container = document.getElementById('reviews-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const gen = document.getElementById('review-search-text')?.value.toLowerCase() || '';
+            const code = document.getElementById('review-search-code')?.value.toLowerCase() || '';
+            const name = document.getElementById('review-search-name')?.value.toLowerCase() || '';
+            const sec = document.getElementById('review-search-sec')?.value.toLowerCase() || '';
+            const prof = document.getElementById('review-search-prof')?.value.toLowerCase() || '';
+            const uni = document.getElementById('review-search-uni')?.value || '';
+
+            const filtered = courseReviews.filter(r => {
+                if (gen && !r.subject.toLowerCase().includes(gen) && !r.professor.toLowerCase().includes(gen) && !r.comment.toLowerCase().includes(gen)) return false;
+                if (code && !r.subject.toLowerCase().includes(code)) return false;
+                if (name && !r.subject.toLowerCase().includes(name)) return false;
+                if (sec && !r.sec.toLowerCase().includes(sec)) return false;
+                if (prof && !r.professor.toLowerCase().includes(prof)) return false;
+                if (uni && r.university !== uni) return false;
+                return true;
+            });
+
+            filtered.forEach(r => {
+                const card = document.createElement('div');
+                card.className = "glass-card-light p-5 rounded-3xl space-y-3";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-black rounded">${r.sec}</span>
+                            <h4 class="font-bold text-sm text-slate-800 mt-1">${r.subject}</h4>
+                            <p class="text-xs text-slate-500">อาจารย์ผู้สอน: ${r.professor} (${r.university})</p>
+                        </div>
+                        <span class="text-amber-500 font-black text-sm">⭐ ${r.rating}/5</span>
+                    </div>
+                    <p class="text-xs text-slate-700 bg-slate-50 p-3 rounded-2xl border border-slate-200 leading-relaxed">${r.comment}</p>
+                    <div class="flex justify-between items-center text-[11px] text-slate-400">
+                        <span>สไตล์: ${r.style}</span>
+                        <span>โดย: ${r.author}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterReviews() {
+            renderReviews();
+        }
+
+        function resetReviewSearch() {
+            ['review-search-text', 'review-search-code', 'review-search-name', 'review-search-sec', 'review-search-prof'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const uni = document.getElementById('review-search-uni');
+            if (uni) uni.value = '';
+            renderReviews();
+        }
+
+        function openReviewModal() {
+            document.getElementById('add-review-modal').classList.remove('hidden');
+        }
+
+        function closeReviewModal() {
+            document.getElementById('add-review-modal').classList.add('hidden');
+        }
+
+        function saveCourseReview(e) {
+            e.preventDefault();
+            const anon = document.getElementById('rev-anon').checked;
+            courseReviews.push({
+                id: 'r' + Date.now(),
+                subject: document.getElementById('rev-subject').value,
+                sec: document.getElementById('rev-sec').value || 'Sec 01',
+                professor: document.getElementById('rev-prof').value,
+                university: document.getElementById('rev-uni').value,
+                year: document.getElementById('rev-year').value,
+                difficulty: document.getElementById('rev-diff').value,
+                rating: parseInt(document.getElementById('rev-rating').value),
+                style: document.getElementById('rev-style').value,
+                comment: document.getElementById('rev-comment').value,
+                author: anon ? 'ไม่ระบุตัวตน (Anonymous)' : (currentUser ? currentUser.email : 'นักศึกษา')
+            });
+            closeReviewModal();
+            renderReviews();
+        }
+
+        // TIMER & BRAINWAVES
+        let pomoInterval = null;
+        let pomoTimeLeft = 25 * 60;
+
+        function updatePomoDisplay() {
+            const m = Math.floor(pomoTimeLeft / 60);
+            const s = pomoTimeLeft % 60;
+            const disp = document.getElementById('pomo-display');
+            if (disp) disp.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function startPomodoro() {
+            if (pomoInterval) return;
+            document.getElementById('timer-start-btn').classList.add('hidden');
+            document.getElementById('timer-pause-btn').classList.remove('hidden');
+            pomoInterval = setInterval(() => {
+                if (pomoTimeLeft > 0) {
+                    pomoTimeLeft--;
+                    updatePomoDisplay();
+                } else {
+                    pausePomodoro();
+                    alert('🎉 หมดเวลาแล้ว! พักผ่อนสายตาได้เลย');
+                }
+            }, 1000);
+        }
+
+        function pausePomodoro() {
+            clearInterval(pomoInterval);
+            pomoInterval = null;
+            document.getElementById('timer-start-btn').classList.remove('hidden');
+            document.getElementById('timer-pause-btn').classList.add('hidden');
+        }
+
+        function resetPomodoro() {
+            pausePomodoro();
+            pomoTimeLeft = 25 * 60;
+            updatePomoDisplay();
+        }
+
+        function setTimerPreset(mins, label) {
+            pausePomodoro();
+            pomoTimeLeft = mins * 60;
+            document.getElementById('timer-mode-label').innerText = label;
+            updatePomoDisplay();
+        }
+
+        function openCustomTimerModal() {
+            document.getElementById('custom-timer-modal').classList.remove('hidden');
+        }
+
+        function closeCustomTimerModal() {
+            document.getElementById('custom-timer-modal').classList.add('hidden');
+        }
+
+        function applyCustomTimer() {
+            const val = parseInt(document.getElementById('custom-timer-input').value);
+            if (val && val > 0) {
+                setTimerPreset(val, 'Custom Session');
+            }
+            closeCustomTimerModal();
+        }
+
+        // ADMIN PANEL HANDLERS (EXAM APPROVAL & COMMENT MODERATION)
+        function switchAdminTab(adminTab) {
+            const pendingView = document.getElementById('admin-pending-exams-view');
+            const reportedView = document.getElementById('admin-reported-comments-view');
+            const examsBtn = document.getElementById('admin-subtab-exams-btn');
+            const reportsBtn = document.getElementById('admin-subtab-reports-btn');
+
+            if (adminTab === 'pendingExams') {
+                if (pendingView) pendingView.classList.remove('hidden');
+                if (reportedView) reportedView.classList.add('hidden');
+                if (examsBtn) examsBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white";
+                if (reportsBtn) reportsBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200";
+                renderPendingExams();
+            } else {
+                if (pendingView) pendingView.classList.add('hidden');
+                if (reportedView) reportedView.classList.remove('hidden');
+                if (reportsBtn) reportsBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white";
+                if (examsBtn) examsBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200";
+                renderReportedComments();
+            }
+        }
+
+        function renderPendingExams() {
+            const listContainer = document.getElementById('pending-exams-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
+
+            const pendingExams = exams.filter(e => e.status === 'Pending Admin Approval');
+            const badge = document.getElementById('pending-count-badge');
+            if (badge) badge.innerText = pendingExams.length;
+
+            if (pendingExams.length === 0) {
+                listContainer.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">ไม่มีข้อสอบที่รอการอนุมัติในขณะนี้</p>';
+                return;
+            }
+
+            pendingExams.forEach(e => {
+                const item = document.createElement('div');
+                item.className = "p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-xs";
+                item.innerHTML = `
+                    <div class="flex justify-between items-center font-bold text-slate-800">
+                        <span>[${e.code}] ${e.name} (${e.year})</span>
+                        <span class="text-amber-600">Pending Approval</span>
+                    </div>
+                    <p class="text-slate-600"><strong>ผู้สอน:</strong> ${e.professor}</p>
+                    <p class="text-slate-700 font-mono bg-white p-2.5 rounded-xl border border-slate-200">${e.question}</p>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button onclick="approveExam(${e.id})" class="px-3 py-1.5 bg-emerald-600 text-white rounded-xl font-bold">✅ อนุมัติ</button>
+                        <button onclick="rejectExam(${e.id})" class="px-3 py-1.5 bg-red-600 text-white rounded-xl font-bold">❌ ปฏิเสธ</button>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        function renderReportedComments() {
+            const listContainer = document.getElementById('reported-comments-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
+
+            let reportedItems = [];
+            exams.forEach(e => {
+                e.comments.forEach(c => {
+                    if (c.reports > 0) {
+                        reportedItems.push({ examId: e.id, examTitle: e.name, comment: c });
+                    }
+                });
+            });
+
+            if (reportedItems.length === 0) {
+                listContainer.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">ไม่มีความคิดเห็นที่ถูกรายงานในขณะนี้</p>';
+                return;
+            }
+
+            reportedItems.forEach(item => {
+                const c = item.comment;
+                const card = document.createElement('div');
+                card.className = "p-4 bg-red-50 border border-red-200 rounded-2xl space-y-2 text-xs";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center font-bold text-red-800">
+                        <span>วิชา: ${item.examTitle}</span>
+                        <span class="px-2 py-0.5 bg-red-200 text-red-900 rounded">ถูกรายงาน ${c.reports} ครั้ง</span>
+                    </div>
+                    <p class="text-slate-800"><strong>${c.user}:</strong> ${c.text}</p>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button onclick="dismissReport(${item.examId}, '${c.id}')" class="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-xl font-bold">ยกเลิกรายงาน</button>
+                        <button onclick="deleteComment(${item.examId}, '${c.id}')" class="px-3 py-1.5 bg-red-600 text-white rounded-xl font-bold">ลบคอมเมนต์</button>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        function approveExam(id) {
+            const exam = exams.find(e => e.id === id);
+            if (exam) {
+                exam.status = 'Approved';
+                renderPendingExams();
+                renderExams();
+            }
+        }
+
+        function rejectExam(id) {
+            exams = exams.filter(e => e.id !== id);
+            renderPendingExams();
+            renderExams();
+        }
+
+        function dismissReport(examId, commentId) {
+            const exam = exams.find(e => e.id === examId);
+            if (exam) {
+                const comment = exam.comments.find(c => c.id === commentId);
+                if (comment) {
+                    comment.reports = 0;
+                    renderReportedComments();
+                    renderExams();
+                }
+            }
+        }
+
+        function deleteComment(examId, commentId) {
+            const exam = exams.find(e => e.id === examId);
+            if (exam) {
+                exam.comments = exam.comments.filter(c => c.id !== commentId);
+                renderReportedComments();
+                renderExams();
+            }
+        }
+
+        let audioCtx = null;
+        function playBrainwave(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const badge = document.getElementById('audio-status-badge');
+            const title = document.getElementById('current-sound-title');
+            if (badge) badge.innerText = 'Playing';
+            if (title) title.innerText = `กำลังเล่นคลื่นเสียง: ${type.toUpperCase()}`;
+        }
+
+        function stopAudio() {
+            const badge = document.getElementById('audio-status-badge');
+            const title = document.getElementById('current-sound-title');
+            if (badge) badge.innerText = 'Ready';
+            if (title) title.innerText = 'เลือกคลื่นเสียงเพื่อเปิดเล่น';
+        }
+
+        // SETTINGS MODAL
+        function openSettingsModal() {
+            document.getElementById('user-settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('user-settings-modal').classList.add('hidden');
+        }
+
+        function switchSettingsTab(t) {
+            ['profile', 'security', 'pref', 'data'].forEach(tab => {
+                const view = document.getElementById(`set-view-${tab}`);
+                const btn = document.getElementById(`set-tab-${tab}`);
+                if (view) {
+                    if (tab === t) view.classList.remove('hidden');
+                    else view.classList.add('hidden');
+                }
+                if (btn) {
+                    if (tab === t) btn.className = "pb-2 text-blue-600 border-b-2 border-blue-600 font-bold";
+                    else btn.className = "pb-2 text-slate-400 border-b-2 border-transparent hover:text-slate-600 font-bold";
+                }
+            });
+        }
+
+        function saveUserSettings() {
+            alert('บันทึกข้อมูลการตั้งค่าเรียบร้อยแล้ว!');
+            closeSettingsModal();
+        }
+
+        function exportUserData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ tasks, summarySheets, courseReviews }));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", "law_hub_user_data.json");
+            dlAnchorElem.click();
+        }
+
+        function deleteAccount() {
+            if (confirm('คุณแน่ใจหรือว่าต้องการลบบัญชีผู้ใช้? ข้อมูลทั้งหมดจะถูกลบถาวร')) {
+                handleLogout();
+            }
+        }
+
+        // INITIALIZATION
+        window.onload = function() {
+            if (window.lucide) lucide.createIcons();
+            setAuthUserType('student');
+        };
+    </script>
+</body>
+</html>
