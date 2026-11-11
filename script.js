@@ -1,5 +1,204 @@
-```javascript
-            tableHTML += `</tr>`;
+        // DATA STATE & STORAGE
+        const DOMAINS = {
+            TU: '@dome.tu.ac.th',
+            CU: '@student.chula.ac.th',
+            RU: '@rumail.ru.ac.th'
+        };
+
+        const UNI_NAMES = {
+            TU: 'มหาวิทยาลัยธรรมศาสตร์',
+            CU: 'จุฬาลงกรณ์มหาวิทยาลัย',
+            RU: 'มหาวิทยาลัยรามคำแหง'
+        };
+
+        let currentUser = null;
+        let authMode = 'login';
+        let authUserType = 'student';
+
+        function getRelativeDate(daysOffset) {
+            const d = new Date();
+            d.setDate(d.getDate() + daysOffset);
+            return d.toISOString().split('T')[0];
+        }
+
+        let tasks = [
+            { id: '1', name: 'อ่าน ป.พ.พ. ลักษณะนิติกรรมและสัญญา', category: 'Law', start: getRelativeDate(-3), end: getRelativeDate(4), progress: 60 },
+            { id: '2', name: 'ทบทวนองค์ประกอบความผิด อาญา 1', category: 'Law', start: getRelativeDate(0), end: getRelativeDate(7), progress: 30 },
+            { id: '3', name: 'ทำสไลด์นำเสนอวิชา GE101', category: 'GE', start: getRelativeDate(1), end: getRelativeDate(5), progress: 80 },
+            { id: '4', name: 'ซ้อมโต้วางมูลนิธินิติศาสตร์', category: 'Activity', start: getRelativeDate(3), end: getRelativeDate(9), progress: 10 }
+        ];
+
+        let exams = [
+            {
+                id: 101,
+                code: 'น. 101',
+                name: 'กฎหมายลักษณะนิติกรรมและสัญญา',
+                professor: 'ศ.ดร.สมชาย ใจดี',
+                university: 'มหาวิทยาลัยธรรมศาสตร์',
+                year: '2566',
+                question: 'นาย ก ทำสัญญาซื้อขายรถยนต์กับ นาย ข โดยนาย ก ถูก นาย ค ข่มขู่ให้ทำ สัญญานี้มีผลอย่างไรตามกฎหมาย?',
+                answerKey: 'การข่มขู่ทำให้นิติกรรมเป็นโมฆียะ ตาม ป.พ.พ. มาตรา 164 นาย ก สามารถบอกลบล้างนิติกรรมได้ภายในอายุความ',
+                rubric: '1. อ้างอิง ป.พ.พ. มาตรา 164 (5 คะแนน)\n2. ปรับบทเรื่องโมฆียะและการบอกลบล้าง (5 คะแนน)',
+                status: 'Approved',
+                comments: [
+                    { id: 'c1', user: 'std_tu@dome.tu.ac.th', text: 'ถ้าเป็นกรณีข่มขู่โดยบุคคลภายนอก สัญญาเป็นโมฆียะทันทีเลยใช่ไหมครับ?', time: '2 ชั่วโมงที่แล้ว', agrees: 5, reports: 0, reportedBy: [] },
+                    { id: 'c2', user: 'law_expert@dome.tu.ac.th', text: 'ถูกต้องครับ ตามมาตรา 164 การข่มขู่ไม่ว่ากระทำโดยคู่กรณีหรือบุคคลภายนอก ตราบใดที่ทำให้อีกฝ่ายเกิดความกลัว นิติกรรมเป็นโมฆียะทั้งหมด', time: '1 ชั่วโมงที่แล้ว', agrees: 12, reports: 0, reportedBy: [] }
+                ]
+            },
+            {
+                id: 102,
+                code: '2401102',
+                name: 'กฎหมายอาญาภาคทั่วไป',
+                professor: 'รศ.ดร.วิชัย นิติศาสตร์',
+                university: 'จุฬาลงกรณ์มหาวิทยาลัย',
+                year: '2565',
+                question: 'นาย A เล็งปืนไปที่ นาย B แต่ปืนขัดข้องยิงไม่ออก นาย A มีความผิดฐานใด?',
+                answerKey: 'นาย A มีความผิดฐานพยายามฆ่าผู้อื่น ตาม ป.อ. มาตรา 288 ประกอบมาตรา 80 แม้ปืนขัดข้องก็ถือว่าได้กระทำไปถึงขั้นเป็นขั้นตอนสุดท้ายแล้ว',
+                rubric: '1. มาตรา 288 ประกอบ 80 (5 คะแนน)\n2. การวิเคราะห์องค์ประกอบความผิด (5 คะแนน)',
+                status: 'Approved',
+                comments: []
+            }
+        ];
+
+        let userProfileData = {
+            displayName: 'นักศึกษานิติศาสตร์',
+            year: 'ปี 2',
+            field: 'กฎหมายแพ่งและพาณิชย์'
+        };
+
+        let courseReviews = [
+            {
+                id: 'r1',
+                subject: 'น.101 กฎหมายลักษณะนิติกรรมและสัญญา',
+                sec: 'Sec 010001',
+                professor: 'ศ.ดร.สมชาย ใจดี',
+                university: 'มหาวิทยาลัยธรรมศาสตร์',
+                year: 'ปี 1',
+                difficulty: 'ยาก',
+                rating: 5,
+                style: 'เน้นวิเคราะห์ฎีกา มีเช็กชื่อสุ่ม 10 คะแนน',
+                comment: 'อาจารย์สอนดีมาก อธิบายมโนทัศน์นิติกรรมเคลียร์สุดๆ ข้อสอบเน้นการวินิจฉัยตามหลักกฎหมายแท้ๆ',
+                author: 'นศ.ปี 2 (TU)'
+            }
+        ];
+
+        let summarySheets = [
+            {
+                id: 's1',
+                title: 'สรุป ป.พ.พ. นิติกรรมสัญญา มาตรา 150-171 (ฉบับสอบไฟนอล)',
+                code: 'น.101',
+                subject: 'กฎหมายลักษณะนิติกรรมและสัญญา',
+                sec: 'Sec 010001',
+                professor: 'ศ.ดร.สมชาย ใจดี',
+                university: 'มหาวิทยาลัยธรรมศาสตร์',
+                desc: 'เน้นมาตราสำคัญ 150, 151, 154, 155 พร้อมโครงสร้างการเขียนตอบข้อสอบกฎหมาย',
+                author: 'law_tu_topstudent',
+                downloads: 342,
+                fileType: 'PDF'
+            }
+        ];
+
+        // TASK & GANTT MANAGEMENT (DATE-CENTRIC TIMELINE TABLE)
+        function initGanttChart() {
+            const container = document.getElementById('ganttTableContainer');
+            if (!container) return;
+
+            // Compute Date Range (7 Days Range around tasks)
+            let minTimestamp = Infinity;
+            let maxTimestamp = -Infinity;
+
+            tasks.forEach(t => {
+                const s = new Date(t.start).getTime();
+                const e = new Date(t.end).getTime();
+                if (s < minTimestamp) minTimestamp = s;
+                if (e > maxTimestamp) maxTimestamp = e;
+            });
+
+            const todayObj = new Date();
+            todayObj.setHours(0, 0, 0, 0);
+            const todayStr = todayObj.toISOString().split('T')[0];
+
+            if (minTimestamp === Infinity) {
+                minTimestamp = new Date(todayObj.getTime() - (2 * 86400000)).getTime();
+                maxTimestamp = new Date(todayObj.getTime() + (10 * 86400000)).getTime();
+            } else {
+                minTimestamp = Math.min(minTimestamp, todayObj.getTime() - (2 * 86400000));
+                maxTimestamp = Math.max(maxTimestamp, todayObj.getTime() + (8 * 86400000));
+            }
+
+            // Build array of dates
+            const dateList = [];
+            let currTime = minTimestamp;
+            while (currTime <= maxTimestamp) {
+                dateList.push(new Date(currTime));
+                currTime += 86400000;
+            }
+
+            // Render Table HTML
+            let tableHTML = `
+                <table class="w-full text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100/90 border-b border-slate-200">
+                            <th class="p-2 text-left font-bold text-slate-700 min-w-[160px] sticky left-0 bg-slate-100 z-10">หัวข้อภาระงาน</th>
+                            ${dateList.map(d => {
+                                const dStr = d.toISOString().split('T')[0];
+                                const isToday = dStr === todayStr;
+                                const dayNum = d.getDate();
+                                const monthNum = d.getMonth() + 1;
+                                return `
+                                    <th class="p-2 text-center font-bold min-w-[42px] border-l border-slate-200 ${isToday ? 'bg-blue-600 text-white' : 'text-slate-600'}">
+                                        <div class="text-[10px] opacity-80">${monthNum}/${dayNum}</div>
+                                        <div class="text-[11px] font-black">${isToday ? 'วันนี้' : ''}</div>
+                                    </th>
+                                `;
+                            }).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+            `;
+
+            if (tasks.length === 0) {
+                tableHTML += `<tr><td colspan="${dateList.length + 1}" class="p-4 text-center text-slate-400">ไม่มีรายการภาระงาน</td></tr>`;
+            } else {
+                tasks.forEach(t => {
+                    const tStart = new Date(t.start).getTime();
+                    const tEnd = new Date(t.end).getTime();
+
+                    let categoryBg = 'bg-blue-600';
+                    if (t.category === 'GE') categoryBg = 'bg-emerald-500';
+                    else if (t.category === 'Activity') categoryBg = 'bg-amber-500';
+                    else if (t.category === 'Personal') categoryBg = 'bg-purple-500';
+
+                    tableHTML += `
+                        <tr class="hover:bg-slate-50 transition-all">
+                            <td class="p-2.5 font-bold text-slate-800 sticky left-0 bg-white shadow-sm border-r border-slate-200 z-10">
+                                <div class="line-clamp-1">${t.name}</div>
+                                <div class="text-[10px] font-normal text-slate-400">คืบหน้า ${t.progress}%</div>
+                            </td>
+                    `;
+
+                    dateList.forEach(d => {
+                        const dateTime = d.getTime();
+                        const dStr = d.toISOString().split('T')[0];
+                        const isToday = dStr === todayStr;
+                        const isInTaskRange = dateTime >= tStart && dateTime <= tEnd;
+
+                        if (isInTaskRange) {
+                            tableHTML += `
+                                <td class="p-1 text-center border-l border-slate-100 ${isToday ? 'bg-blue-50/80' : ''}">
+                                    <div class="w-full h-6 ${categoryBg} text-white font-black text-[9px] rounded flex items-center justify-center shadow-sm" title="${t.name} (${t.start} ถึง ${t.end})">
+                                        ${dStr === t.start ? 'เริ่ม' : (dStr === t.end ? 'จบ' : '•')}
+                                    </div>
+                                </td>
+                            `;
+                        } else {
+                            tableHTML += `
+                                <td class="p-1 border-l border-slate-100 ${isToday ? 'bg-blue-50/40' : ''}"></td>
+                            `;
+                        }
+                    });
+
+                    tableHTML += `</tr>`;
                 });
             }
 
@@ -10,227 +209,6 @@
 
             container.innerHTML = tableHTML;
         }
-
-        function renderTasks() {
-            const tbody = document.getElementById('tasks-table-body');
-            const todayContainer = document.getElementById('today-tasks-container');
-            if (!tbody || !todayContainer) return;
-
-            tbody.innerHTML = '';
-            todayContainer.innerHTML = '';
-
-            const today = new Date().toISOString().split('T')[0];
-
-            tasks.forEach(task => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-slate-50 transition-all';
-                row.innerHTML = `
-                    <td class="p-3.5 font-bold text-slate-800">${task.name}</td>
-                    <td class="p-3.5 text-slate-600">${task.category}</td>
-                    <td class="p-3.5 text-slate-600">${task.start} - ${task.end}</td>
-                    <td class="p-3.5">
-                        <div class="flex items-center gap-2">
-                            <div class="w-20 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <div class="h-full bg-blue-600 rounded-full" style="width:${task.progress}%"></div>
-                            </div>
-                            <span class="text-xs font-bold text-slate-600">${task.progress}%</span>
-                        </div>
-                    </td>
-                    <td class="p-3.5 text-right">
-                        <button onclick="editTask('${task.id}')" class="text-blue-600 hover:text-blue-800 mr-2">แก้ไข</button>
-                        <button onclick="deleteTask('${task.id}')" class="text-red-500 hover:text-red-700">ลบ</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-
-                if (task.start <= today && task.end >= today) {
-                    const item = document.createElement('div');
-                    item.className = 'p-3 bg-slate-50 border border-slate-200 rounded-xl';
-                    item.innerHTML = `
-                        <p class="font-bold text-xs text-slate-800">${task.name}</p>
-                        <p class="text-[10px] text-slate-500 mt-1">${task.progress}% complete</p>
-                    `;
-                    todayContainer.appendChild(item);
-                }
-            });
-
-            initGanttChart();
-        }
-
-        function resetTaskForm() {
-            const form = document.getElementById('task-form');
-            if (form) form.reset();
-            document.getElementById('task-id').value = '';
-            document.getElementById('task-progress-val').innerText = '0%';
-            document.getElementById('task-submit-btn').querySelector('span').innerText = 'บันทึก Task';
-        }
-
-        function editTask(id) {
-            const task = tasks.find(t => t.id === id);
-            if (!task) return;
-
-            document.getElementById('task-id').value = task.id;
-            document.getElementById('task-name').value = task.name;
-            document.getElementById('task-category').value = task.category;
-            document.getElementById('task-start').value = task.start;
-            document.getElementById('task-end').value = task.end;
-            document.getElementById('task-progress').value = task.progress;
-            document.getElementById('task-progress-val').innerText = task.progress + '%';
-            document.getElementById('task-submit-btn').querySelector('span').innerText = 'อัปเดต Task';
-            document.getElementById('task-form').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function deleteTask(id) {
-            if (!confirm('ต้องการลบภาระงานนี้หรือไม่?')) return;
-            tasks = tasks.filter(t => t.id !== id);
-            renderTasks();
-        }
-
-        document.getElementById('task-form')?.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const id = document.getElementById('task-id').value;
-            const taskData = {
-                id: id || Date.now().toString(),
-                name: document.getElementById('task-name').value,
-                category: document.getElementById('task-category').value,
-                start: document.getElementById('task-start').value,
-                end: document.getElementById('task-end').value,
-                progress: parseInt(document.getElementById('task-progress').value)
-            };
-
-            if (id) {
-                const index = tasks.findIndex(t => t.id === id);
-                if (index !== -1) tasks[index] = taskData;
-            } else {
-                tasks.push(taskData);
-            }
-
-            renderTasks();
-            resetTaskForm();
-        });
-
-        // AUTHENTICATION SYSTEM
-        function switchAuthMode(mode) {
-            authMode = mode;
-            document.getElementById('auth-login-form').classList.toggle('hidden', mode !== 'login');
-            document.getElementById('auth-register-form').classList.toggle('hidden', mode !== 'register');
-        }
-
-        function setAuthUserType(type) {
-            authUserType = type;
-            const studentBtn = document.getElementById('auth-type-student');
-            const adminBtn = document.getElementById('auth-type-admin');
-
-            if (studentBtn && adminBtn) {
-                studentBtn.className = type === 'student'
-                    ? 'flex-1 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs'
-                    : 'flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs';
-                adminBtn.className = type === 'admin'
-                    ? 'flex-1 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs'
-                    : 'flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs';
-            }
-        }
-
-      
-function handleLogin(e) {
-    e.preventDefault();
-
-    const email = document.getElementById('login-email').value.trim().toLowerCase();
-    const password = document.getElementById('login-pass').value;
-
-    const uniSelect = document.getElementById('login-uni');
-    const uniKey = uniSelect ? uniSelect.value : 'TU';
-
-    if (!email || !password) {
-        showAuthError('กรุณากรอกอีเมลและรหัสผ่าน');
-        return;
-    }
-
-    if (authUserType === 'student') {
-        const expected = DOMAINS[uniKey];
-
-        if (!email.endsWith(expected)) {
-            showAuthError(`อีเมลนักศึกษาต้องลงท้ายด้วย ${expected}`);
-            return;
-        }
-    }
-
-    const users = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
-
-    const user = users.find(u =>
-        u.email.toLowerCase() === email &&
-        u.password === password &&
-        u.type === authUserType
-    );
-
-    if (!user) {
-        showAuthError('ไม่พบบัญชีผู้ใช้ หรือรหัสผ่านไม่ถูกต้อง กรุณาสมัครสมาชิกก่อน');
-        return;
-    }
-
-    currentUser = user;
-
-    document.getElementById('auth-error-msg').classList.add('hidden');
-    showDashboard();
-}
-
-function handleRegister(e) {
-    e.preventDefault();
-
-    const email = document.getElementById('reg-email').value.trim().toLowerCase();
-    const password = document.getElementById('reg-pass').value;
-
-    const uniSelect = document.getElementById('reg-uni');
-    const uniKey = uniSelect ? uniSelect.value : 'TU';
-
-    if (!email || !password) {
-        showAuthError('กรุณากรอกอีเมลและรหัสผ่าน');
-        return;
-    }
-
-    if (authUserType === 'student') {
-        const expected = DOMAINS[uniKey];
-
-        if (!email.endsWith(expected)) {
-            showAuthError(`อีเมลสมัครต้องลงท้ายด้วย ${expected}`);
-            return;
-        }
-    }
-
-    if (password.length < 8) {
-        showAuthError('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
-        return;
-    }
-
-    const users = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
-
-    if (users.some(u => u.email.toLowerCase() === email)) {
-        showAuthError('อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบ');
-        return;
-    }
-
-    const newUser = {
-        email: email,
-        password: password,
-        type: authUserType,
-        university: authUserType === 'student'
-            ? UNI_NAMES[uniKey]
-            : 'บุคคลทั่วไป'
-    };
-
-    users.push(newUser);
-    localStorage.setItem('lawHubUsers', JSON.stringify(users));
-
-    alert('สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ');
-
-    document.getElementById('auth-error-msg').classList.add('hidden');
-    switchAuthTab('login');
-
-    document.getElementById('login-email').value = email;
-    document.getElementById('login-pass').value = '';
-}
-
 
         function renderTasks() {
             const tbody = document.getElementById('tasks-table-body');
@@ -275,7 +253,7 @@ function handleRegister(e) {
                 const todayObj = new Date(todayStr);
                 const diffTime = endDateObj - todayObj;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
+                
                 let dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">เหลือ ${diffDays} วัน</span>`;
                 if (prog === 100) dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">เสร็จสิ้น</span>`;
                 else if (diffDays < 0) dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">เกินกำหนด</span>`;
@@ -313,7 +291,7 @@ function handleRegister(e) {
             const avgProg = tasks.length ? Math.round(sumProg / tasks.length) : 0;
             const headerPercent = document.getElementById('header-total-progress-percent');
             if (headerPercent) headerPercent.innerText = `${avgProg}%`;
-
+            
             const headerBar = document.getElementById('header-total-progress-bar');
             if (headerBar) headerBar.style.width = `${avgProg}%`;
 
@@ -414,246 +392,7 @@ function handleRegister(e) {
                 loginForm.classList.add('hidden');
             }
         }
-        function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value.trim();
-            const password = document.getElementById('login-password').value;
 
-            if (!email || !password) {
-                alert('กรุณากรอกอีเมลและรหัสผ่าน');
-                return;
-            }
-
-            const domain = Object.values(DOMAINS).find(d => email.endsWith(d));
-            if (!domain) {
-                alert('กรุณาใช้อีเมลมหาวิทยาลัยที่กำหนด');
-                return;
-            }
-
-            if (authUserType === 'admin') {
-                if (email !== 'admin@lawhub.com' || password !== 'admin123') {
-                    alert('อีเมลหรือรหัสผ่านผู้ดูแลระบบไม่ถูกต้อง');
-                    return;
-                }
-                currentUser = { name: 'Administrator', email, role: 'admin' };
-            } else {
-                const users = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
-                const user = users.find(u => u.email === email && u.password === password);
-                if (!user) {
-                    alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
-                    return;
-                }
-                currentUser = user;
-            }
-
-            document.getElementById('auth-modal').classList.add('hidden');
-            updateUserInterface();
-        }
-
-        function handleRegister(e) {
-            e.preventDefault();
-            const name = document.getElementById('register-name').value.trim();
-            const email = document.getElementById('register-email').value.trim();
-            const password = document.getElementById('register-password').value;
-            const confirmPassword = document.getElementById('register-confirm-password').value;
-
-            if (!name || !email || !password || !confirmPassword) {
-                alert('กรุณากรอกข้อมูลให้ครบทุกช่อง');
-                return;
-            }
-
-            const domain = Object.values(DOMAINS).find(d => email.endsWith(d));
-            if (!domain) {
-                alert('กรุณาใช้อีเมลมหาวิทยาลัยที่กำหนด');
-                return;
-            }
-
-            if (password.length < 6) {
-                alert('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
-                return;
-            }
-
-            if (password !== confirmPassword) {
-                alert('รหัสผ่านไม่ตรงกัน');
-                return;
-            }
-
-            const users = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
-            if (users.some(u => u.email === email)) {
-                alert('อีเมลนี้ถูกลงทะเบียนแล้ว');
-                return;
-            }
-
-            const uniKey = Object.keys(DOMAINS).find(key => DOMAINS[key] === domain);
-            users.push({
-                name,
-                email,
-                password,
-                university: UNI_NAMES[uniKey],
-                role: 'student'
-            });
-            localStorage.setItem('lawHubUsers', JSON.stringify(users));
-
-            alert('สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ');
-            switchAuthTab('login');
-            document.getElementById('login-email').value = email;
-        }
-
-        function updateUserInterface() {
-            if (!currentUser) return;
-            const userName = document.getElementById('header-user-name');
-            const userEmail = document.getElementById('header-user-email');
-            if (userName) userName.innerText = currentUser.name;
-            if (userEmail) userEmail.innerText = currentUser.email;
-
-            const adminPanelBtn = document.getElementById('admin-panel-btn');
-            if (adminPanelBtn) {
-                if (currentUser.role === 'admin') adminPanelBtn.classList.remove('hidden');
-                else adminPanelBtn.classList.add('hidden');
-            }
-        }
-
-        function handleLogout() {
-            currentUser = null;
-            document.getElementById('auth-modal').classList.remove('hidden');
-            switchAuthTab('login');
-        }
-
-        function showSection(sectionName) {
-            document.querySelectorAll('main section').forEach(section => section.classList.add('hidden'));
-            const target = document.getElementById(`section-${sectionName}`);
-            if (target) target.classList.remove('hidden');
-
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.classList.remove('bg-blue-50', 'text-blue-700');
-                item.classList.add('text-slate-600');
-            });
-
-            const activeNav = document.querySelector(`[data-section="${sectionName}"]`);
-            if (activeNav) {
-                activeNav.classList.add('bg-blue-50', 'text-blue-700');
-                activeNav.classList.remove('text-slate-600');
-            }
-
-            if (sectionName === 'dashboard') renderTasks();
-            if (sectionName === 'exambank') renderExams();
-            if (sectionName === 'reviews') renderCourseReviews();
-            if (sectionName === 'sheets') renderSummarySheets();
-        }
-
-        // EXAM BANK & DISCUSSION
-        function renderExams() {
-            const container = document.getElementById('exams-container');
-            if (!container) return;
-            container.innerHTML = '';
-
-            const approvedExams = exams.filter(exam => exam.status === 'Approved');
-            if (approvedExams.length === 0) {
-                container.innerHTML = '<p class="text-center text-slate-400 py-8">ไม่พบข้อสอบที่ค้นหา</p>';
-                return;
-            }
-
-            approvedExams.forEach(exam => {
-                const card = document.createElement('div');
-                card.className = 'glass-card-light p-5 rounded-3xl space-y-4';
-                card.innerHTML = `
-                    <div class="flex flex-wrap justify-between items-start gap-2">
-                        <div>
-                            <p class="text-xs text-blue-600 font-bold">${exam.code} • ${exam.year}</p>
-                            <h3 class="font-bold text-slate-800 text-base">${exam.name}</h3>
-                            <p class="text-xs text-slate-500 mt-1">${exam.university} | ${exam.professor}</p>
-                        </div>
-                        <span class="px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full">อนุมัติแล้ว</span>
-                    </div>
-                    <div class="p-4 bg-slate-50 rounded-2xl space-y-2">
-                        <p class="text-xs font-bold text-slate-700">โจทย์ข้อสอบ</p>
-                        <p class="text-sm text-slate-800 leading-relaxed">${exam.question}</p>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="toggleExamAnswer(${exam.id})" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl">ดูธงคำตอบ</button>
-                        <button onclick="toggleExamComments(${exam.id})" class="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl">ความคิดเห็น (${exam.comments.length})</button>
-                    </div>
-                    <div id="answer-${exam.id}" class="hidden p-4 bg-blue-50 border border-blue-100 rounded-2xl space-y-2">
-                        <p class="text-xs font-bold text-blue-800">ธงคำตอบ / แนวทางการวินิจฉัย</p>
-                        <p class="text-sm text-slate-800 leading-relaxed">${exam.answerKey}</p>
-                        <p class="text-xs font-bold text-blue-800 mt-2">เกณฑ์การให้คะแนน</p>
-                        <p class="text-xs text-slate-700 whitespace-pre-line">${exam.rubric}</p>
-                    </div>
-                    <div id="comments-${exam.id}" class="hidden space-y-3">
-                        <div id="comment-list-${exam.id}" class="space-y-2">
-                            ${exam.comments.map(c => `
-                                <div class="p-3 bg-slate-50 rounded-xl text-xs space-y-1">
-                                    <p class="font-bold text-slate-700">${c.user}</p>
-                                    <p class="text-slate-600">${c.text}</p>
-                                    <div class="flex justify-between items-center text-[10px] text-slate-400">
-                                        <span>${c.time}</span>
-                                        <span>เห็นด้วย ${c.agrees} คน</span>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <form onsubmit="addExamComment(event, ${exam.id})" class="flex gap-2">
-                            <input id="comment-input-${exam.id}" required placeholder="แสดงความคิดเห็น..." class="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none">
-                            <button class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl">ส่ง</button>
-                        </form>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function toggleExamAnswer(id) {
-            document.getElementById(`answer-${id}`).classList.toggle('hidden');
-        }
-
-        function toggleExamComments(id) {
-            document.getElementById(`comments-${id}`).classList.toggle('hidden');
-        }
-
-        function addExamComment(e, examId) {
-            e.preventDefault();
-            const input = document.getElementById(`comment-input-${examId}`);
-            const exam = exams.find(x => x.id === examId);
-            if (!exam || !input.value.trim()) return;
-
-            exam.comments.push({
-                id: Date.now().toString(),
-                user: currentUser ? currentUser.email : 'ผู้ใช้งาน',
-                text: input.value.trim(),
-                time: 'เมื่อสักครู่',
-                agrees: 0,
-                reports: 0,
-                reportedBy: []
-            });
-            renderExams();
-            document.getElementById(`comments-${examId}`).classList.remove('hidden');
-        }
-
-        function filterExams() {
-            const keyword = document.getElementById('search-general').value.toLowerCase();
-            const code = document.getElementById('search-code').value.toLowerCase();
-            const name = document.getElementById('search-name').value.toLowerCase();
-            const prof = document.getElementById('search-prof').value.toLowerCase();
-            const uni = document.getElementById('search-uni').value;
-            const year = document.getElementById('search-year').value.toLowerCase();
-
-            const filtered = exams.filter(exam => {
-                return exam.status === 'Approved' &&
-                    (!keyword || `${exam.code} ${exam.name} ${exam.question}`.toLowerCase().includes(keyword)) &&
-                    (!code || exam.code.toLowerCase().includes(code)) &&
-                    (!name || exam.name.toLowerCase().includes(name)) &&
-                    (!prof || exam.professor.toLowerCase().includes(prof)) &&
-                    (!uni || exam.university === uni) &&
-                    (!year || exam.year.toLowerCase().includes(year));
-            });
-
-            const container = document.getElementById('exams-container');
-            if (!container) return;
-            const oldExams = exams;
-            exams = filtered;
-            renderExams();
-            exams = oldExams;
-        }
         function setAuthUserType(type) {
             authUserType = type;
             const studBtn = document.getElementById('type-student-btn');
@@ -682,7 +421,7 @@ function handleRegister(e) {
                 if (loginStudentHint) loginStudentHint.classList.add('hidden');
                 if (regStudentHint) regStudentHint.classList.add('hidden');
                 if (regDomainBadge) regDomainBadge.classList.add('hidden');
-
+                
                 const loginEmail = document.getElementById('login-email');
                 const regEmail = document.getElementById('reg-email');
                 if (loginEmail) loginEmail.placeholder = 'example@gmail.com';
@@ -873,55 +612,229 @@ function handleRegister(e) {
             filtered.forEach(e => {
                 const card = document.createElement('div');
                 card.className = "glass-card-light p-6 rounded-3xl space-y-4";
-
+                
                 let commentsHTML = e.comments.map(c => `
                     <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-1">
                         <div class="flex justify-between items-center text-slate-500">
                             <span class="font-bold text-slate-700">${c.user}</span>
                             <span>${c.time}</span>
                         </div>
-                        <p class="text-slate-700 leading-relaxed">${c.text}</p>
-                        <div class="flex items-center gap-3 mt-2">
+                        <p class="text-slate-800">${c.text}</p>
+                        <div class="flex items-center gap-3 pt-1 text-[11px]">
                             <button onclick="agreeComment(${e.id}, '${c.id}')" class="text-blue-600 font-bold hover:underline">👍 เห็นด้วย (${c.agrees})</button>
-                            <button onclick="reportComment(${e.id}, '${c.id}')" class="text-red-500 font-bold hover:underline">รายงาน</button>
+                            <button onclick="openReportModal(${e.id}, '${c.id}')" class="text-slate-400 hover:text-red-500">🚩 รายงาน</button>
                         </div>
                     </div>
                 `).join('');
 
                 card.innerHTML = `
-                    <div class="flex flex-wrap justify-between items-start gap-3">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-3 gap-2">
                         <div>
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-xs font-black text-blue-600">${e.code}</span>
-                                <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold">${e.year}</span>
-                            </div>
-                            <h3 class="font-bold text-slate-800 text-base">${e.name}</h3>
-                            <p class="text-xs text-slate-500 mt-1">${e.university} | ${e.professor}</p>
+                            <span class="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-black mr-2">${e.code}</span>
+                            <span class="font-bold text-base text-slate-800">${e.name}</span>
                         </div>
-                        <span class="px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full border border-emerald-100">อนุมัติแล้ว</span>
+                        <span class="text-xs text-slate-500">${e.university} | ปี ${e.year}</span>
                     </div>
-                    <div class="bg-slate-50 p-4 rounded-2xl space-y-2">
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">โจทย์ข้อสอบ (Question)</p>
-                        <p class="text-sm text-slate-800 leading-relaxed">${e.question}</p>
+                    <div class="text-xs text-slate-600 space-y-1">
+                        <p><strong>อาจารย์ผู้สอน:</strong> ${e.professor}</p>
+                        <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-slate-800 leading-relaxed">
+                            ${e.question}
+                        </div>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="toggleExamDetail(${e.id}, 'answer')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm">เฉลย / ธงคำตอบ</button>
-                        <button onclick="toggleExamDetail(${e.id}, 'rubric')" class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition-all border border-indigo-100">เกณฑ์การให้คะแนน</button>
-                        <button onclick="toggleExamDetail(${e.id}, 'comments')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all">💬 อภิปราย (${e.comments.length})</button>
+                    <div class="pt-2">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">พื้นที่ฝึกเขียนตอบข้อสอบ:</label>
+                        <textarea rows="3" placeholder="เขียนปรับบทกฎหมายและวินิจฉัย..." class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                     </div>
-                    <div id="exam-detail-${e.id}-answer" class="hidden p-4 bg-blue-50 border border-blue-100 rounded-2xl text-sm text-slate-800 leading-relaxed whitespace-pre-line">${e.answerKey}</div>
-                    <div id="exam-detail-${e.id}-rubric" class="hidden p-4 bg-indigo-50 border border-indigo-100 rounded-2xl text-xs text-slate-800 leading-relaxed whitespace-pre-line">${e.rubric}</div>
-                    <div id="exam-detail-${e.id}-comments" class="hidden space-y-3 pt-2">
-                        <div class="space-y-2">${commentsHTML || '<p class="text-xs text-slate-400">ยังไม่มีความคิดเห็น</p>'}</div>
-                        <form onsubmit="addComment(event, ${e.id})" class="flex gap-2">
-                            <input id="new-comment-${e.id}" type="text" placeholder="แสดงความคิดเห็นหรือถามข้อสงสัย..." class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500" required>
-                            <button type="submit" class="px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-xl">ส่ง</button>
-                        </form>
+                    <div class="flex items-center justify-between pt-2">
+                        <button onclick="toggleAnswerKey('ans-${e.id}')" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
+                            <span>👁️ แสดง/ซ่อน ธงคำตอบ & Rubric</span>
+                        </button>
+                    </div>
+                    <div id="ans-${e.id}" class="hidden p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs space-y-2 text-emerald-900">
+                        <h5 class="font-bold text-emerald-800">ธงคำตอบแนวทางวินิจฉัย:</h5>
+                        <p class="whitespace-pre-line">${e.answerKey}</p>
+                        <h5 class="font-bold text-emerald-800 pt-2">Scoring Rubric:</h5>
+                        <p class="whitespace-pre-line">${e.rubric}</p>
+                    </div>
+                    <div class="pt-3 border-t border-slate-200 space-y-3">
+                        <h5 class="font-bold text-xs text-slate-700">Academic Discussion (${e.comments.length})</h5>
+                        <div class="space-y-2">${commentsHTML}</div>
+                        <div class="flex gap-2">
+                            <input type="text" id="comment-input-${e.id}" placeholder="แสดงความเห็นหรือตั้งคำถามกฎหมาย..." class="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                            <button onclick="addComment(${e.id})" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow">ส่ง</button>
+                        </div>
                     </div>
                 `;
                 container.appendChild(card);
             });
         }
+
+        function filterExams() {
+            renderExams();
+        }
+
+        function resetExamSearch() {
+            ['search-general', 'search-code', 'search-name', 'search-prof', 'search-year'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const uniSelect = document.getElementById('search-uni');
+            if (uniSelect) uniSelect.value = '';
+            renderExams();
+        }
+
+        function toggleAnswerKey(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('hidden');
+        }
+
+        function addComment(examId) {
+            const input = document.getElementById(`comment-input-${examId}`);
+            if (!input || !input.value.trim()) return;
+
+            const exam = exams.find(e => e.id === examId);
+            if (exam) {
+                exam.comments.push({
+                    id: 'c' + Date.now(),
+                    user: currentUser ? currentUser.email : 'student@dome.tu.ac.th',
+                    text: input.value.trim(),
+                    time: 'เมื่อกี้',
+                    agrees: 0,
+                    reports: 0,
+                    reportedBy: []
+                });
+                renderExams();
+            }
+        }
+
+        function agreeComment(examId, commentId) {
+            const exam = exams.find(e => e.id === examId);
+            if (exam) {
+                const comment = exam.comments.find(c => c.id === commentId);
+                if (comment) {
+                    comment.agrees++;
+                    renderExams();
+                }
+            }
+        }
+
+        function openReportModal(examId, commentId) {
+            document.getElementById('report-exam-id').value = examId;
+            document.getElementById('report-comment-id').value = commentId;
+            document.getElementById('report-modal').classList.remove('hidden');
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal').classList.add('hidden');
+        }
+
+        function submitCommentReport() {
+            const examId = parseInt(document.getElementById('report-exam-id').value);
+            const commentId = document.getElementById('report-comment-id').value;
+            const exam = exams.find(e => e.id === examId);
+            if (exam) {
+                const comment = exam.comments.find(c => c.id === commentId);
+                if (comment) {
+                    comment.reports++;
+                }
+            }
+            closeReportModal();
+            renderExams();
+        }
+
+        function handleExamUpload(e) {
+            e.preventDefault();
+            const code = document.getElementById('upload-code').value;
+            const name = document.getElementById('upload-name').value;
+            const prof = document.getElementById('upload-prof').value;
+            const year = document.getElementById('upload-year').value;
+            const question = document.getElementById('upload-question').value;
+            const answerKey = document.getElementById('upload-answer').value;
+            const rubric = document.getElementById('upload-rubric').value;
+
+            exams.push({
+                id: Date.now(),
+                code,
+                name,
+                professor: prof,
+                university: 'ข้อสอบส่วนบุคคล (Personal / Community Uploads)',
+                year,
+                question,
+                answerKey: answerKey || 'ยังไม่มีเฉลยจากผู้จำลอง',
+                rubric: rubric || 'ยังไม่มี Rubric',
+                status: 'Pending Admin Approval',
+                comments: []
+            });
+
+            alert('ส่งข้อสอบสำเร็จแล้ว! อยู่ในสถานะรอการอนุมัติจากผู้ดูแลระบบ');
+            switchExamSubTab('search');
+            renderExams();
+        }
+
+        // SUMMARY SHEETS FUNCTIONS
+        function renderSheets() {
+            const grid = document.getElementById('sheets-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            const gen = document.getElementById('sheet-search-general')?.value.toLowerCase() || '';
+            const code = document.getElementById('sheet-search-code')?.value.toLowerCase() || '';
+            const name = document.getElementById('sheet-search-name')?.value.toLowerCase() || '';
+            const sec = document.getElementById('sheet-search-sec')?.value.toLowerCase() || '';
+            const prof = document.getElementById('sheet-search-prof')?.value.toLowerCase() || '';
+            const uni = document.getElementById('sheet-search-uni')?.value || '';
+
+            const filtered = summarySheets.filter(s => {
+                if (gen && !s.title.toLowerCase().includes(gen) && !s.desc.toLowerCase().includes(gen) && !s.author.toLowerCase().includes(gen) && !s.code.toLowerCase().includes(gen)) return false;
+                if (code && !s.code.toLowerCase().includes(code)) return false;
+                if (name && !s.subject.toLowerCase().includes(name) && !s.title.toLowerCase().includes(name)) return false;
+                if (sec && !s.sec.toLowerCase().includes(sec)) return false;
+                if (prof && !s.professor.toLowerCase().includes(prof) && !s.author.toLowerCase().includes(prof)) return false;
+                if (uni && s.university !== uni) return false;
+                return true;
+            });
+
+            filtered.forEach(s => {
+                const card = document.createElement('div');
+                card.className = "glass-card-light p-5 rounded-3xl space-y-3 flex flex-col justify-between";
+                card.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-black">${s.code}</span>
+                            <span class="text-[11px] font-bold text-slate-400">${s.fileType}</span>
+                        </div>
+                        <h4 class="font-bold text-sm text-slate-800 line-clamp-2">${s.title}</h4>
+                        <p class="text-xs text-slate-500 leading-relaxed">${s.desc}</p>
+                    </div>
+                    <div class="pt-3 border-t border-slate-200 text-[11px] text-slate-500 space-y-1">
+                        <div class="flex justify-between">
+                            <span>ผู้สอน: <strong>${s.professor || '-'}</strong></span>
+                            <span>เซก: <strong>${s.sec || '-'}</strong></span>
+                        </div>
+                        <div class="flex justify-between items-center pt-2">
+                            <span class="font-semibold text-emerald-600">📥 ดาวน์โหลด (${s.downloads})</span>
+                            <button onclick="downloadSheet('${s.id}')" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded-xl shadow text-xs">พรีวิว / โหลด</button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function filterSheets() {
+            renderSheets();
+        }
+
+        function resetSheetSearch() {
+            ['sheet-search-general', 'sheet-search-code', 'sheet-search-name', 'sheet-search-sec', 'sheet-search-prof'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const uni = document.getElementById('sheet-search-uni');
+            if (uni) uni.value = '';
+            renderSheets();
+        }
+
         function openUploadSheetModal() {
             document.getElementById('upload-sheet-modal').classList.remove('hidden');
         }
@@ -1143,7 +1056,6 @@ function handleRegister(e) {
                 return;
             }
 
-            pendingExams.forEach(e => {
             pendingExams.forEach(e => {
                 const item = document.createElement('div');
                 item.className = "p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-xs";
