@@ -1,49 +1,24 @@
-body {
-    font-family: 'Kanit', 'Inter', sans-serif;
-    background-color: #f8fafc;
-    color: #0f172a;
-}
+        body { font-family: 'Kanit', 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.6); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 99px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+        
+        .glass-card-light {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
+        }
 
-.custom-scrollbar::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-}
+        .auth-card-body {
+            background: #ffffff;
+            color: #0f172a;
+        }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(226, 232, 240, 0.6);
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #94a3b8;
-    border-radius: 99px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #2563eb;
-}
-
-.glass-card-light {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05),
-                0 8px 10px -6px rgba(15, 23, 42, 0.03);
-}
-
-.auth-card-body {
-    background: #ffffff;
-    color: #0f172a;
-}
-
-.wave-bar {
-    animation: wave 1.2s ease-in-out infinite alternate;
-}
-
-@keyframes wave {
-    0% {
-        height: 6px;
-    }
-
-    100% {
-        height: 28px;
-    }
-}
+        .wave-bar {
+            animation: wave 1.2s ease-in-out infinite alternate;
+        }
+        @keyframes wave {
+            0% { height: 6px; }
+            100% { height: 28px; }
+        }
