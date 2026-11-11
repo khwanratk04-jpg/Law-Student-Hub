@@ -1,3 +1,85 @@
+const firebaseConfig = {
+    apiKey: "AIzaSyBoUZg0HJzZ2cp5Zeh-Tq5tvsKwjWYv5lw",
+    authDomain: "law-student-hub-f4ce2.firebaseapp.com",
+    projectId: "law-student-hub-f4ce2",
+    storageBucket: "law-student-hub-f4ce2.firebasestorage.app",
+    messagingSenderId: "870165363239",
+    appId: "1:870165363239:web:5d60270c7b57ac2cd16c02",
+    measurementId: "G-3R3VX7FN3D"
+};
+
+firebase.initializeApp(firebaseConfig);
+const firebaseAuth = firebase.auth();
+const firestore = firebase.firestore();
+let cloudSaveTimer = null;
+let isLoadingCloudData = false;
+
+async function loadCloudData() {
+    if (!firebaseAuth.currentUser) return;
+    isLoadingCloudData = true;
+    try {
+        const ref = firestore.collection('users').doc(firebaseAuth.currentUser.uid)
+            .collection('workspace').doc('main');
+        const snap = await ref.get();
+        if (snap.exists) {
+            const data = snap.data();
+            if (Array.isArray(data.tasks)) tasks = data.tasks;
+            if (Array.isArray(data.exams)) exams = data.exams;
+            if (Array.isArray(data.courseReviews)) courseReviews = data.courseReviews;
+            if (Array.isArray(data.summarySheets)) summarySheets = data.summarySheets;
+            if (data.userProfileData && typeof data.userProfileData === 'object') {
+                userProfileData = data.userProfileData;
+            }
+        } else {
+            await saveCloudDataNow();
+        }
+    } catch (error) {
+        console.error('Firebase load error:', error);
+        showAuthError('เข้าสู่ระบบได้ แต่โหลดข้อมูลจาก Firebase ไม่สำเร็จ กรุณาตรวจสอบการตั้งค่า Firestore');
+    } finally {
+        isLoadingCloudData = false;
+    }
+}
+
+async function saveCloudDataNow() {
+    if (!firebaseAuth.currentUser || isLoadingCloudData) return;
+    const data = {
+        tasks,
+        exams,
+        courseReviews,
+        summarySheets,
+        userProfileData,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    try {
+        await firestore.collection('users').doc(firebaseAuth.currentUser.uid)
+            .collection('workspace').doc('main').set(data, { merge: true });
+    } catch (error) {
+        console.error('Firebase save error:', error);
+        alert('บันทึกข้อมูลออนไลน์ไม่สำเร็จ กรุณาตรวจสอบ Firestore Rules และการเชื่อมต่ออินเทอร์เน็ต');
+    }
+}
+
+function saveCloudData() {
+    if (!firebaseAuth.currentUser || isLoadingCloudData) return;
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(saveCloudDataNow, 500);
+}
+
+function firebaseErrorMessage(error) {
+    const messages = {
+        'auth/email-already-in-use': 'อีเมลนี้ถูกลงทะเบียนแล้ว',
+        'auth/invalid-email': 'รูปแบบอีเมลไม่ถูกต้อง',
+        'auth/weak-password': 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+        'auth/user-not-found': 'ไม่พบบัญชีนี้ กรุณาลงทะเบียนก่อน',
+        'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
+        'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+        'auth/too-many-requests': 'มีการลองเข้าสู่ระบบหลายครั้งเกินไป กรุณารอสักครู่',
+        'auth/network-request-failed': 'เชื่อมต่ออินเทอร์เน็ตไม่สำเร็จ'
+    };
+    return messages[error.code] || 'เกิดข้อผิดพลาด: ' + (error.message || 'กรุณาลองใหม่');
+}
+
         // DATA STATE & STORAGE
         const DOMAINS = {
             TU: '@dome.tu.ac.th',
@@ -339,6 +421,7 @@
 
             resetTaskForm();
             renderTasks();
+            saveCloudData();
         }
 
         function resetTaskForm() {
@@ -370,6 +453,7 @@
         function deleteTask(id) {
             tasks = tasks.filter(t => t.id !== id);
             renderTasks();
+            saveCloudData();
         }
 
         // AUTH & NAVIGATION HANDLERS
@@ -469,9 +553,10 @@
             updateRegDomainHint();
         }
 
-        function handleLogin(e) {
+        async function handleLogin(e) {
             e.preventDefault();
             const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-pass').value;
             const uniSelect = document.getElementById('login-uni');
             const uniKey = uniSelect ? uniSelect.value : 'TU';
 
@@ -482,18 +567,27 @@
                     return;
                 }
             }
-
-            currentUser = {
-                email,
-                type: authUserType,
-                university: authUserType === 'student' ? UNI_NAMES[uniKey] : 'บุคคลทั่วไป'
-            };
-            showDashboard();
+            try {
+                const credential = await firebaseAuth.signInWithEmailAndPassword(email, password);
+                const profileSnap = await firestore.collection('users').doc(credential.user.uid).get();
+                const profile = profileSnap.exists ? profileSnap.data() : {};
+                currentUser = {
+                    uid: credential.user.uid,
+                    email: credential.user.email,
+                    type: profile.type || authUserType,
+                    university: profile.university || (authUserType === 'student' ? UNI_NAMES[uniKey] : 'บุคคลทั่วไป')
+                };
+                await loadCloudData();
+                showDashboard();
+            } catch (error) {
+                showAuthError(firebaseErrorMessage(error));
+            }
         }
 
-        function handleRegister(e) {
+        async function handleRegister(e) {
             e.preventDefault();
             const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-pass').value;
             const uniSelect = document.getElementById('reg-uni');
             const uniKey = uniSelect ? uniSelect.value : 'TU';
 
@@ -504,13 +598,29 @@
                     return;
                 }
             }
-
-            currentUser = {
-                email,
-                type: authUserType,
-                university: authUserType === 'student' ? UNI_NAMES[uniKey] : 'บุคคลทั่วไป'
-            };
-            showDashboard();
+            if (password.length < 6) {
+                showAuthError('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+                return;
+            }
+            try {
+                const credential = await firebaseAuth.createUserWithEmailAndPassword(email, password);
+                currentUser = {
+                    uid: credential.user.uid,
+                    email: credential.user.email,
+                    type: authUserType,
+                    university: authUserType === 'student' ? UNI_NAMES[uniKey] : 'บุคคลทั่วไป'
+                };
+                await firestore.collection('users').doc(credential.user.uid).set({
+                    email: currentUser.email,
+                    type: currentUser.type,
+                    university: currentUser.university,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                await saveCloudDataNow();
+                showDashboard();
+            } catch (error) {
+                showAuthError(firebaseErrorMessage(error));
+            }
         }
 
         function showAuthError(msg) {
@@ -536,7 +646,8 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        function handleLogout() {
+        async function handleLogout() {
+            try { await firebaseAuth.signOut(); } catch (error) { console.error(error); }
             currentUser = null;
             document.getElementById('main-app').classList.add('hidden');
             document.getElementById('auth-screen').classList.remove('hidden');
@@ -704,6 +815,7 @@
                     reportedBy: []
                 });
                 renderExams();
+                saveCloudData();
             }
         }
 
@@ -714,6 +826,7 @@
                 if (comment) {
                     comment.agrees++;
                     renderExams();
+                    saveCloudData();
                 }
             }
         }
@@ -740,6 +853,7 @@
             }
             closeReportModal();
             renderExams();
+            saveCloudData();
         }
 
         function handleExamUpload(e) {
@@ -769,6 +883,7 @@
             alert('ส่งข้อสอบสำเร็จแล้ว! อยู่ในสถานะรอการอนุมัติจากผู้ดูแลระบบ');
             switchExamSubTab('search');
             renderExams();
+            saveCloudData();
         }
 
         // SUMMARY SHEETS FUNCTIONS
@@ -860,6 +975,7 @@
             });
             closeUploadSheetModal();
             renderSheets();
+            saveCloudData();
         }
 
         function downloadSheet(id) {
@@ -867,6 +983,7 @@
             if (sheet) {
                 sheet.downloads++;
                 renderSheets();
+                saveCloudData();
                 alert(`เปิดพรีวิวไฟล์: ${sheet.title}`);
             }
         }
@@ -956,6 +1073,7 @@
             });
             closeReviewModal();
             renderReviews();
+            saveCloudData();
         }
 
         // TIMER & BRAINWAVES
@@ -1146,6 +1264,7 @@
                 exam.comments = exam.comments.filter(c => c.id !== commentId);
                 renderReportedComments();
                 renderExams();
+                saveCloudData();
             }
         }
 
@@ -1212,4 +1331,21 @@
         window.onload = function() {
             if (window.lucide) lucide.createIcons();
             setAuthUserType('student');
+            firebaseAuth.onAuthStateChanged(async (user) => {
+                if (!user || currentUser) return;
+                try {
+                    const profileSnap = await firestore.collection('users').doc(user.uid).get();
+                    const profile = profileSnap.exists ? profileSnap.data() : {};
+                    currentUser = {
+                        uid: user.uid,
+                        email: user.email,
+                        type: profile.type || 'general',
+                        university: profile.university || 'บุคคลทั่วไป'
+                    };
+                    await loadCloudData();
+                    showDashboard();
+                } catch (error) {
+                    console.error('Firebase session restore error:', error);
+                }
+            });
         };
