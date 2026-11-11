@@ -132,90 +132,105 @@
             }
         }
 
-        function handleLogin(event) {
-            event.preventDefault();
+      
+function handleLogin(e) {
+    e.preventDefault();
 
-            const email = document.getElementById('login-email').value.trim();
-            const password = document.getElementById('login-password').value;
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    const password = document.getElementById('login-pass').value;
 
-            if (!email || !password) {
-                alert('กรุณากรอกอีเมลและรหัสผ่าน');
-                return;
-            }
+    const uniSelect = document.getElementById('login-uni');
+    const uniKey = uniSelect ? uniSelect.value : 'TU';
 
-            const savedUsers = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
-            const user = savedUsers.find(u => u.email === email && u.password === password);
+    if (!email || !password) {
+        showAuthError('กรุณากรอกอีเมลและรหัสผ่าน');
+        return;
+    }
 
-            if (!user) {
-                alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
-                return;
-            }
+    if (authUserType === 'student') {
+        const expected = DOMAINS[uniKey];
 
-            if (authUserType === 'admin' && user.role !== 'admin') {
-                alert('บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานผู้ดูแลระบบ');
-                return;
-            }
-
-            currentUser = user;
-            document.getElementById('auth-modal').classList.add('hidden');
-            updateUserInterface();
-            alert('เข้าสู่ระบบสำเร็จ');
+        if (!email.endsWith(expected)) {
+            showAuthError(`อีเมลนักศึกษาต้องลงท้ายด้วย ${expected}`);
+            return;
         }
+    }
 
-        function handleRegister(event) {
-            event.preventDefault();
+    const users = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
 
-            const name = document.getElementById('register-name').value.trim();
-            const email = document.getElementById('register-email').value.trim();
-            const password = document.getElementById('register-password').value;
-            const confirmPassword = document.getElementById('register-confirm-password').value;
+    const user = users.find(u =>
+        u.email.toLowerCase() === email &&
+        u.password === password &&
+        u.type === authUserType
+    );
 
-            if (!name || !email || !password) {
-                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-                return;
-            }
+    if (!user) {
+        showAuthError('ไม่พบบัญชีผู้ใช้ หรือรหัสผ่านไม่ถูกต้อง กรุณาสมัครสมาชิกก่อน');
+        return;
+    }
 
-            if (password !== confirmPassword) {
-                alert('รหัสผ่านไม่ตรงกัน');
-                return;
-            }
+    currentUser = user;
 
-            const domain = Object.values(DOMAINS).find(d => email.endsWith(d));
-            if (!domain) {
-                alert('กรุณาใช้อีเมลมหาวิทยาลัยที่กำหนด');
-                return;
-            }
+    document.getElementById('auth-error-msg').classList.add('hidden');
+    showDashboard();
+}
 
-            const savedUsers = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
-            if (savedUsers.some(u => u.email === email)) {
-                alert('อีเมลนี้ถูกลงทะเบียนแล้ว');
-                return;
-            }
+function handleRegister(e) {
+    e.preventDefault();
 
-            const newUser = {
-                name,
-                email,
-                password,
-                role: 'student',
-                university: Object.keys(DOMAINS).find(key => DOMAINS[key] === domain)
-            };
+    const email = document.getElementById('reg-email').value.trim().toLowerCase();
+    const password = document.getElementById('reg-pass').value;
 
-            savedUsers.push(newUser);
-            localStorage.setItem('lawHubUsers', JSON.stringify(savedUsers));
-            alert('สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ');
-            switchAuthMode('login');
+    const uniSelect = document.getElementById('reg-uni');
+    const uniKey = uniSelect ? uniSelect.value : 'TU';
+
+    if (!email || !password) {
+        showAuthError('กรุณากรอกอีเมลและรหัสผ่าน');
+        return;
+    }
+
+    if (authUserType === 'student') {
+        const expected = DOMAINS[uniKey];
+
+        if (!email.endsWith(expected)) {
+            showAuthError(`อีเมลสมัครต้องลงท้ายด้วย ${expected}`);
+            return;
         }
-                    tableHTML += `</tr>`;
-                });
-            }
+    }
 
-            tableHTML += `
-                    </tbody>
-                </table>
-            `;
+    if (password.length < 8) {
+        showAuthError('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+        return;
+    }
 
-            container.innerHTML = tableHTML;
-        }
+    const users = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
+
+    if (users.some(u => u.email.toLowerCase() === email)) {
+        showAuthError('อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบ');
+        return;
+    }
+
+    const newUser = {
+        email: email,
+        password: password,
+        type: authUserType,
+        university: authUserType === 'student'
+            ? UNI_NAMES[uniKey]
+            : 'บุคคลทั่วไป'
+    };
+
+    users.push(newUser);
+    localStorage.setItem('lawHubUsers', JSON.stringify(users));
+
+    alert('สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ');
+
+    document.getElementById('auth-error-msg').classList.add('hidden');
+    switchAuthTab('login');
+
+    document.getElementById('login-email').value = email;
+    document.getElementById('login-pass').value = '';
+}
+
 
         function renderTasks() {
             const tbody = document.getElementById('tasks-table-body');
