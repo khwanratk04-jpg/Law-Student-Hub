@@ -1,132 +1,1288 @@
-/* LAW & LIFE PLANNER
-   1) Create a Supabase project.
-   2) Run schema.sql in Supabase SQL Editor.
-   3) Paste your Project URL and anon/publishable key below.
-*/
-const SUPABASE_URL = "sb_publishable_WER4ODkWeZ8ToCtJJuPPCA_hMi2Jjd6";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5b3RweW51dHpuY2h3bmd1enhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MjU2OTYsImV4cCI6MjEwOTIwMTY5Nn0.uld7KAXtq9XyDcHoieOhBYgPbSHKmHbaYfVqdtKaRcU";
+```javascript
+            tableHTML += `</tr>`;
+                });
+            }
 
-const $ = (s, root=document) => root.querySelector(s);
-const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-const todayISO = () => new Date().toLocaleDateString("en-CA");
-const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmtDate = value => value ? new Date(value+"T00:00:00").toLocaleDateString("th-TH",{day:"numeric",month:"short"}) : "—";
-const dateOffset = (date, days) => { const d=new Date(date+"T00:00:00"); d.setDate(d.getDate()+days); return d.toLocaleDateString("en-CA"); };
-let db=null, currentUser=null, authMode="login";
-let tasks=[], exams=[], plans=[], focusSessions=[];
-let selectedExam=null, examFilter="all", taskFilter="all", plannerDay=todayISO();
-let timerMode="focus", timerSeconds=1500, timerRemaining=1500, timerRunning=false, timerInterval=null, audioContext=null, soundNodes=[], activeSound=null;
-const duration = () => ({focus:Number($("#focusMinutes").value)*60,short:Number($("#breakMinutes").value)*60,long:15*60})[timerMode];
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
 
-function toast(message){const el=$("#toast");el.textContent=message;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2600)}
-function showAuthMessage(message,error=true){const el=$("#authMessage");el.textContent=message;el.style.color=error?"#a04f43":"#557d62"}
-function setAuthMode(mode){authMode=mode;$$("[data-auth-tab]").forEach(b=>b.classList.toggle("active",b.dataset.authTab===mode));$("#authSubmit").textContent=mode==="login"?"เข้าสู่ระบบ":"สร้างบัญชี"}
-function initSupabase(){
-  if(SUPABASE_URL.includes("YOUR_")||SUPABASE_ANON_KEY.includes("YOUR_")){showAuthMessage("กรุณาตั้งค่า Supabase URL และ anon key ในไฟล์ script.js ก่อนใช้งาน");return false}
-  if(!window.supabase){showAuthMessage("โหลด Supabase ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต");return false}
-  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);return true;
-}
-async function startApp(user){
-  currentUser=user;$("#userEmail").textContent=user.email||"ผู้ใช้งาน";$("#authScreen").classList.add("hidden");$("#app").classList.remove("hidden");
-  await loadAll();renderAll();setTodayHeader();
-}
-async function loadAll(){
-  const tables=["tasks","exams","planner_items","focus_sessions"];
-  const results=await Promise.all(tables.map(t=>db.from(t).select("*").order("created_at",{ascending:false})));
-  for(let i=0;i<results.length;i++){if(results[i].error){console.error(results[i].error);toast("โหลดข้อมูลบางส่วนไม่สำเร็จ");continue}}
-  tasks=results[0].data||[];exams=results[1].data||[];plans=results[2].data||[];focusSessions=results[3].data||[];
-}
-async function saveRow(table,row){const {data,error}=await db.from(table).upsert(row).select().single();if(error)throw error;return data}
-async function deleteRow(table,id){const {error}=await db.from(table).delete().eq("id",id);if(error)throw error}
-async function updateRow(table,id,changes){const {data,error}=await db.from(table).update(changes).eq("id",id).select().single();if(error)throw error;return data}
-function setTodayHeader(){const d=new Date();$("#todayLabel").textContent=d.toLocaleDateString("en-US",{weekday:"long",month:"long",year:"numeric"}).toUpperCase();$("#todayDay").textContent=d.toLocaleDateString("th-TH",{weekday:"short"});$("#todayDate").textContent=d.toLocaleDateString("th-TH",{day:"numeric",month:"short"})}
-function navigate(page){$$(".page").forEach(p=>p.classList.toggle("active",p.id==="page-"+page));$$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===page));const names={dashboard:"ภาพรวม",gantt:"Gantt Chart",exam:"Law Exam",planner:"My Planner",focus:"Focus Room"};$("#pageTitle").textContent=names[page]||"ภาพรวม";$("#sidebar").classList.remove("open");if(page==="focus")renderFocusHistory()}
-function renderAll(){renderDashboard();renderTasks();renderExams();renderPlanner();renderFocusHistory()}
-function renderDashboard(){
-  const done=tasks.filter(t=>t.status==="done").length,progress=tasks.length?Math.round(done/tasks.length*100):0;
-  $("#statTasks").textContent=tasks.length;$("#statDone").textContent=done;$("#statToday").textContent=plans.filter(p=>p.plan_date===todayISO()).length;$("#statFocus").textContent=focusSessions.length;
-  $("#overallProgress").style.width=progress+"%";$("#progressLabel").textContent=progress+"%";
-  const upcoming=tasks.filter(t=>t.status!=="done").sort((a,b)=>(a.end_date||"").localeCompare(b.end_date||"")).slice(0,4);
-  $("#upcomingTasks").innerHTML=upcoming.length?upcoming.map(t=>`<div class="compact-item"><div><strong>${escapeHTML(t.title)}</strong><small>${fmtDate(t.start_date)} – ${fmtDate(t.end_date)}</small></div><span class="task-meta">${statusText(t.status)}</span></div>`).join(""):'<div class="empty-state">ยังไม่มีงานที่กำลังดำเนินการ</div>';
-  const todays=plans.filter(p=>p.plan_date===todayISO()).sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||""));
-  $("#todaySchedule").innerHTML=todays.length?todays.slice(0,5).map(p=>`<div class="compact-item"><div><strong>${escapeHTML(p.title)}</strong><small>${escapeHTML(p.start_time||"ไม่ระบุเวลา")}${p.category?" · "+escapeHTML(p.category):""}</small></div><span class="task-meta">${p.completed?"เสร็จแล้ว":"ตามแผน"}</span></div>`).join(""):'<div class="empty-state">ยังไม่มีแผนสำหรับวันนี้</div>';
-}
-function statusText(s){return ({todo:"ยังไม่เริ่ม",doing:"กำลังทำ",done:"เสร็จแล้ว"})[s]||"ยังไม่เริ่ม"}
-function renderTasks(){
-  const filtered=tasks.filter(t=>taskFilter==="all"||t.status===taskFilter);$("#taskCount").textContent=filtered.length+" รายการ";
-  if(!filtered.length){$("#taskList").innerHTML='<div class="empty-state">ไม่พบรายการงาน</div>';$("#ganttChart").innerHTML='<div class="empty-state">ยังไม่มีงานในหมวดนี้</div>';return}
-  $("#taskList").innerHTML=filtered.map(t=>`<div class="task-row"><div class="task-title">${escapeHTML(t.title)}<div class="task-meta">${escapeHTML(t.description||"")}</div></div><div class="task-meta">${fmtDate(t.start_date)} – ${fmtDate(t.end_date)}</div><select class="status-select" data-task-status="${t.id}"><option value="todo" ${t.status==="todo"?"selected":""}>ยังไม่เริ่ม</option><option value="doing" ${t.status==="doing"?"selected":""}>กำลังทำ</option><option value="done" ${t.status==="done"?"selected":""}>เสร็จแล้ว</option></select><div class="row-actions"><button class="mini-btn" data-edit-task="${t.id}">แก้ไข</button><button class="mini-btn delete" data-delete-task="${t.id}">ลบ</button></div></div>`).join("");
-  renderGantt(filtered);
-}
-function renderGantt(list){
-  const start=new Date(todayISO()+"T00:00:00");start.setDate(start.getDate()-3);const startISO=start.toLocaleDateString("en-CA");
-  const days=Array.from({length:14},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return d});
-  let html=`<div class="gantt-row header"><div class="gantt-name">ชื่องาน</div><div class="gantt-axis">${days.map(d=>`<span>${d.getDate()}/${d.getMonth()+1}</span>`).join("")}</div></div>`;
-  list.forEach(t=>{const s=new Date((t.start_date||startISO)+"T00:00:00"),e=new Date((t.end_date||t.start_date||startISO)+"T00:00:00"),base=new Date(startISO+"T00:00:00");const left=Math.max(0,Math.round((s-base)/86400000));const right=Math.min(14,Math.round((e-base)/86400000)+1);const width=Math.max(1,right-left);html+=`<div class="gantt-row"><div class="gantt-name" title="${escapeHTML(t.title)}">${escapeHTML(t.title)}</div><div class="gantt-track"><div class="gantt-bar ${t.status}" style="left:${left/14*100}%;width:${width/14*100}%"></div></div></div>`});
-  $("#ganttChart").innerHTML=html;
-}
-function openModal(title,html,onSubmit){$("#modalTitle").textContent=title;$("#modalBody").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$("#modalForm")?.addEventListener("submit",async e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target).entries());try{await onSubmit(data);$("#modalBackdrop").classList.add("hidden")}catch(err){console.error(err);toast(err.message||"บันทึกไม่สำเร็จ")}})}
-function closeModal(){$("#modalBackdrop").classList.add("hidden")}
-function taskForm(task={}){openModal(task.id?"แก้ไขงาน":"เพิ่มงาน",`<form id="modalForm" class="modal-form"><label>ชื่องาน<input name="title" required maxlength="120" value="${escapeHTML(task.title||"")}" placeholder="เช่น อ่านกฎหมายแพ่ง บทที่ 1"></label><label>รายละเอียด<textarea name="description" rows="2">${escapeHTML(task.description||"")}</textarea></label><div class="form-grid"><label>วันเริ่มต้น<input type="date" name="start_date" required value="${task.start_date||todayISO()}"></label><label>วันสิ้นสุด<input type="date" name="end_date" required value="${task.end_date||todayISO()}"></label></div><label>สถานะ<select name="status"><option value="todo" ${task.status==="todo"?"selected":""}>ยังไม่เริ่ม</option><option value="doing" ${task.status==="doing"?"selected":""}>กำลังทำ</option><option value="done" ${task.status==="done"?"selected":""}>เสร็จแล้ว</option></select></label><button class="btn btn-primary full" type="submit">บันทึกงาน</button></form>`,async d=>{if(d.end_date<d.start_date)throw Error("วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น");const row={user_id:currentUser.id,title:d.title,description:d.description,start_date:d.start_date,end_date:d.end_date,status:d.status};if(task.id)row.id=task.id;const saved=await saveRow("tasks",row);tasks=[saved,...tasks.filter(x=>x.id!==saved.id)];renderTasks();renderDashboard();toast("บันทึกงานแล้ว")})}
-async function removeTask(id){if(!confirm("ต้องการลบงานนี้หรือไม่?"))return;await deleteRow("tasks",id);tasks=tasks.filter(t=>t.id!==id);renderTasks();renderDashboard();toast("ลบงานแล้ว")}
-function examForm(exam={}){openModal(exam.id?"แก้ไขข้อสอบ":"เพิ่มข้อสอบ",`<form id="modalForm" class="modal-form"><label>ชื่อข้อสอบ / หัวข้อ<input name="title" required value="${escapeHTML(exam.title||"")}" placeholder="เช่น หลักทั่วไปเรื่องนิติกรรม"></label><div class="form-grid"><label>หมวดวิชา<select name="subject"><option ${exam.subject==="แพ่ง"?"selected":""}>แพ่ง</option><option ${exam.subject==="อาญา"?"selected":""}>อาญา</option><option ${exam.subject==="รัฐธรรมนูญ"?"selected":""}>รัฐธรรมนูญ</option><option ${exam.subject==="อื่น ๆ"?"selected":""}>อื่น ๆ</option></select></label><label>ระดับความยาก<select name="difficulty"><option>พื้นฐาน</option><option ${exam.difficulty==="ปานกลาง"?"selected":""}>ปานกลาง</option><option ${exam.difficulty==="ท้าทาย"?"selected":""}>ท้าทาย</option></select></label></div><label>โจทย์ข้อสอบ<textarea name="question" rows="5" required>${escapeHTML(exam.question||"")}</textarea></label><label>ธงคำตอบ / แนวคำตอบ<textarea name="answer_key" rows="5" placeholder="เขียนประเด็น หลักกฎหมาย การปรับบท และข้อสรุป">${escapeHTML(exam.answer_key||"")}</textarea></label><label>คำแนะนำในการตอบ<textarea name="tips" rows="3" placeholder="ประเด็นที่ควรกล่าวถึง ข้อควรระวัง และเทคนิคการตอบ">${escapeHTML(exam.tips||"")}</textarea></label><button class="btn btn-primary full" type="submit">บันทึกข้อสอบ</button></form>`,async d=>{const row={user_id:currentUser.id,title:d.title,subject:d.subject,difficulty:d.difficulty,question:d.question,answer_key:d.answer_key,tips:d.tips};if(exam.id)row.id=exam.id;const saved=await saveRow("exams",row);exams=[saved,...exams.filter(x=>x.id!==saved.id)];selectedExam=saved.id;renderExams();toast("บันทึกข้อสอบแล้ว")})}
-function renderExams(){
-  const q=($("#examSearch")?.value||"").toLowerCase();const list=exams.filter(e=>(examFilter==="all"||e.subject===examFilter)&&(`${e.title} ${e.question} ${e.subject}`).toLowerCase().includes(q));
-  $("#examList").innerHTML=list.length?list.map(e=>`<button class="exam-list-item ${e.id===selectedExam?"active":""}" data-open-exam="${e.id}"><strong>${escapeHTML(e.title)}</strong><small>${escapeHTML(e.subject)} · ${escapeHTML(e.difficulty||"พื้นฐาน")}</small></button>`).join(""):'<div class="empty-state">ยังไม่มีข้อสอบในหมวดนี้</div>';
-  const e=exams.find(x=>x.id===selectedExam);
-  if(!e){$("#examWorkspace").innerHTML='<div class="empty-state large-empty"><div class="empty-symbol">§</div><h3>เลือกข้อสอบเพื่อเริ่มฝึก</h3><p>หรือเพิ่มโจทย์ข้อสอบของคุณเองในคลังข้อสอบ</p></div>';return}
-  $("#examWorkspace").innerHTML=`<div class="exam-work-head"><span class="exam-tag">${escapeHTML(e.subject)} · ${escapeHTML(e.difficulty||"พื้นฐาน")}</span><div class="panel-heading"><h3>${escapeHTML(e.title)}</h3><div class="row-actions"><button class="mini-btn" data-edit-exam="${e.id}">แก้ไข</button><button class="mini-btn delete" data-delete-exam="${e.id}">ลบ</button></div></div></div><p class="eyebrow">QUESTION</p><div class="exam-question">${escapeHTML(e.question)}</div><label for="studentAnswer">คำตอบของฉัน</label><textarea id="studentAnswer" class="answer-area" placeholder="เริ่มต้นด้วยการจับประเด็นข้อกฎหมาย แล้วอธิบายหลักกฎหมายและปรับบทกับข้อเท็จจริง..."></textarea><div class="exam-actions"><button class="btn btn-primary" id="toggleAnswer">เปิดดูธงคำตอบ</button><button class="btn btn-secondary" id="copyQuestion">คัดลอกโจทย์</button></div><div id="answerReveal" class="answer-key hidden"><p class="eyebrow">ANSWER GUIDE</p><h4>ธงคำตอบ / แนวคำตอบ</h4><p>${escapeHTML(e.answer_key||"ยังไม่มีการเพิ่มธงคำตอบสำหรับข้อนี้")}</p><h4>คำแนะนำในการตอบ</h4><div class="hint-box">${escapeHTML(e.tips||"ยังไม่มีคำแนะนำสำหรับข้อนี้")}</div></div>`;
-}
-async function deleteExam(id){if(!confirm("ต้องการลบข้อสอบนี้หรือไม่?"))return;await deleteRow("exams",id);exams=exams.filter(e=>e.id!==id);selectedExam=null;renderExams();toast("ลบข้อสอบแล้ว")}
-function renderPlanner(){
-  $("#plannerDate").value=plannerDay;$("#plannerHeading").textContent=new Date(plannerDay+"T00:00:00").toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-  const list=plans.filter(p=>p.plan_date===plannerDay).sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||""));$("#planTotal").textContent=list.length+" กิจกรรม";
-  $("#plannerTimeline").innerHTML=list.length?list.map(p=>`<div class="timeline-item"><div class="timeline-time">${escapeHTML(p.start_time||"—")}</div><div class="timeline-line"></div><div class="timeline-content"><strong>${escapeHTML(p.title)}</strong><small>${escapeHTML(p.category||"กิจกรรม")} ${p.end_time?"· "+escapeHTML(p.end_time):""}</small><div class="row-actions" style="justify-content:flex-start;margin-top:6px"><button class="mini-btn" data-edit-plan="${p.id}">แก้ไข</button><button class="mini-btn delete" data-delete-plan="${p.id}">ลบ</button></div></div></div>`).join(""):'<div class="empty-state">ยังไม่มีกิจกรรมในวันนี้</div>';
-  $("#plannerTodos").innerHTML=list.length?list.map(p=>`<label class="todo-item ${p.completed?"completed":""}"><input type="checkbox" data-plan-check="${p.id}" ${p.completed?"checked":""}><span>${escapeHTML(p.title)}</span></label>`).join(""):'<div class="empty-state">เพิ่มกิจกรรมเพื่อสร้างรายการของวันนี้</div>';
-  const note=localStorage.getItem("llp-note-"+plannerDay)||"";$("#dailyNote").value=note;
-}
-function planForm(plan={}){openModal(plan.id?"แก้ไขกิจกรรม":"เพิ่มกิจกรรม",`<form id="modalForm" class="modal-form"><label>ชื่อกิจกรรม<input name="title" required value="${escapeHTML(plan.title||"")}" placeholder="เช่น อ่านคำพิพากษา"></label><div class="form-grid"><label>วันที่<input name="plan_date" type="date" required value="${plan.plan_date||plannerDay}"></label><label>หมวดหมู่<select name="category"><option ${plan.category==="เรียน"?"selected":""}>เรียน</option><option ${plan.category==="งาน"?"selected":""}>งาน</option><option ${plan.category==="พักผ่อน"?"selected":""}>พักผ่อน</option><option ${plan.category==="ส่วนตัว"?"selected":""}>ส่วนตัว</option></select></label></div><div class="form-grid"><label>เวลาเริ่ม<input name="start_time" type="time" value="${plan.start_time||"09:00"}"></label><label>เวลาสิ้นสุด<input name="end_time" type="time" value="${plan.end_time||"10:00"}"></label></div><button class="btn btn-primary full" type="submit">บันทึกกิจกรรม</button></form>`,async d=>{const row={user_id:currentUser.id,title:d.title,plan_date:d.plan_date,category:d.category,start_time:d.start_time||null,end_time:d.end_time||null,completed:plan.completed||false};if(plan.id)row.id=plan.id;const saved=await saveRow("planner_items",row);plans=[saved,...plans.filter(p=>p.id!==saved.id)];plannerDay=d.plan_date;renderPlanner();renderDashboard();toast("บันทึกกิจกรรมแล้ว")})}
-async function togglePlan(id,completed){const saved=await updateRow("planner_items",id,{completed});plans=plans.map(p=>p.id===id?saved:p);renderPlanner();renderDashboard()}
-function setTimerMode(mode){timerMode=mode;timerRunning=false;clearInterval(timerInterval);timerSeconds=duration();timerRemaining=timerSeconds;$$(".timer-mode").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));$("#timerStart").textContent="เริ่มโฟกัส";$("#timerCaption").textContent=mode==="focus"?"TIME TO FOCUS":mode==="short"?"SHORT BREAK":"LONG BREAK";updateTimerUI()}
-function updateTimerUI(){const m=Math.floor(timerRemaining/60),s=timerRemaining%60;$("#timerDisplay").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");const circumference=2*Math.PI*104;$("#timerProgress").style.strokeDasharray=circumference;$("#timerProgress").style.strokeDashoffset=circumference*(1-timerRemaining/timerSeconds)}
-async function completeFocus(){timerRunning=false;clearInterval(timerInterval);$("#timerStart").textContent="เริ่มโฟกัส";if(timerMode==="focus"){try{const row=await saveRow("focus_sessions",{user_id:currentUser.id,mode:"focus",duration_minutes:Math.round(timerSeconds/60),completed_at:new Date().toISOString()});focusSessions=[row,...focusSessions];renderFocusHistory();renderDashboard();toast("ยอดเยี่ยม! บันทึกช่วงเวลาโฟกัสแล้ว")}catch(e){toast("จับเวลาสำเร็จ แต่บันทึกข้อมูลไม่สำเร็จ")}}else toast("หมดเวลาพักแล้ว พร้อมกลับมาโฟกัสหรือยัง?");}
-function startTimer(){if(timerRunning){timerRunning=false;clearInterval(timerInterval);$("#timerStart").textContent="ทำต่อ";return}if(timerRemaining<=0){timerRemaining=timerSeconds}timerRunning=true;$("#timerStart").textContent="หยุดชั่วคราว";timerInterval=setInterval(()=>{timerRemaining--;updateTimerUI();if(timerRemaining<=0)completeFocus()},1000)}
-function renderFocusHistory(){$("#focusSessionCount").textContent=`สะสม ${focusSessions.length} รอบโฟกัส`;$ ("#statFocus").textContent=focusSessions.length;$("#focusHistory").innerHTML=focusSessions.length?focusSessions.slice(0,8).map(s=>`<div class="compact-item"><div><strong>Focus session · ${s.duration_minutes} นาที</strong><small>${new Date(s.completed_at||s.created_at).toLocaleString("th-TH",{dateStyle:"medium",timeStyle:"short"})}</small></div><span class="task-meta">✓ Completed</span></div>`).join(""):'<div class="empty-state">ยังไม่มีประวัติการโฟกัส</div>'}
-function stopSound(){soundNodes.forEach(n=>{try{n.stop?.();n.disconnect?.()}catch(e){}});soundNodes=[];activeSound=null;$$(".sound-card").forEach(b=>b.classList.remove("active"));$("#soundIndicator").textContent="● SOUND OFF";$("#soundName").textContent="ยังไม่ได้เลือกเสียง";$("#soundDescription").textContent="เลือกเสียงเพื่อเริ่มสร้างบรรยากาศ";$("#soundToggle").textContent="เล่นเสียง"}
-function makeNoise(type){if(!audioContext)audioContext=new (window.AudioContext||window.webkitAudioContext)();const ctx=audioContext;const master=ctx.createGain();master.gain.value=Number($("#volumeControl").value)/100*.22;master.connect(ctx.destination);soundNodes.push(master);
-  const bufferSize=ctx.sampleRate*3,buffer=ctx.createBuffer(1,bufferSize,ctx.sampleRate),data=buffer.getChannelData(0);let last=0;
-  for(let i=0;i<bufferSize;i++){const white=Math.random()*2-1;if(type==="brown"){last=(last+.02*white)/1.02;data[i]=last*3.5}else if(type==="pink"){last=.97*last+.03*white;data[i]=last*2.4}else data[i]=white*.65}
-  const src=ctx.createBufferSource();src.buffer=buffer;src.loop=true;const filter=ctx.createBiquadFilter();filter.type="lowpass";filter.frequency.value=type==="rain"?4200:type==="brown"?700:type==="forest"?1800:10000;src.connect(filter);filter.connect(master);src.start();soundNodes.push(src,filter);
-  if(type==="ocean"){const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type="sine";osc.frequency.value=95;gain.gain.value=.13;const lfo=ctx.createOscillator(),lfoGain=ctx.createGain();lfo.frequency.value=.12;lfoGain.gain.value=.1;lfo.connect(lfoGain);lfoGain.connect(gain.gain);osc.connect(gain);gain.connect(master);osc.start();lfo.start();soundNodes.push(osc,gain,lfo,lfoGain)}
-  if(type==="cafe"){const osc=ctx.createOscillator(),g=ctx.createGain();osc.type="triangle";osc.frequency.value=170;g.gain.value=.035;osc.connect(g);g.connect(master);osc.start();soundNodes.push(osc,g)}
-  if(type==="forest"){const chirp=ctx.createOscillator(),g=ctx.createGain();chirp.type="sine";chirp.frequency.value=2100;g.gain.value=.012;chirp.connect(g);g.connect(master);chirp.start();soundNodes.push(chirp,g)}
-}
-function playSound(type){if(activeSound===type){stopSound();return}stopSound();activeSound=type;makeNoise(type);const names={rain:["Rainy Day","เสียงฝนตกเบา ๆ"],forest:["Forest","บรรยากาศธรรมชาติ"],ocean:["Ocean Waves","เสียงคลื่นต่อเนื่อง"],white:["White Noise","เสียงสีขาว"],brown:["Brown Noise","เสียงทุ้มต่อเนื่อง"],cafe:["Café Mood","บรรยากาศคาเฟ่"]};$("#soundName").textContent=names[type][0];$("#soundDescription").textContent=names[type][1];$("#soundIndicator").textContent="● SOUND ON";$("#soundToggle").textContent="ปิดเสียง";$$(".sound-card").forEach(b=>b.classList.toggle("active",b.dataset.sound===type))}
-function bindEvents(){
-  $$("[data-auth-tab]").forEach(b=>b.addEventListener("click",()=>setAuthMode(b.dataset.authTab)));
-  $("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!db&&!initSupabase())return;const email=$("#authEmail").value.trim(),password=$("#authPassword").value;$("#authSubmit").disabled=true;showAuthMessage("กำลังดำเนินการ...",false);try{const result=authMode==="login"?await db.auth.signInWithPassword({email,password}):await db.auth.signUp({email,password});if(result.error)throw result.error;if(result.data.session)await startApp(result.data.user);else showAuthMessage("สมัครสมาชิกสำเร็จ กรุณาตรวจสอบอีเมลเพื่อยืนยันบัญชีก่อนเข้าสู่ระบบ",false)}catch(err){showAuthMessage(err.message||"เกิดข้อผิดพลาด")}finally{$("#authSubmit").disabled=false}});
-  $("#logoutBtn").addEventListener("click",async()=>{stopSound();await db.auth.signOut();location.reload()});
-  $$(".nav-item").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));$$("[data-go]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.go)));
-  $("#menuToggle").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
-  $("#addTaskBtn").addEventListener("click",()=>taskForm());$$("[data-task-filter]").forEach(b=>b.addEventListener("click",()=>{taskFilter=b.dataset.taskFilter;$$("[data-task-filter]").forEach(x=>x.classList.toggle("active",x===b));renderTasks()}));
-  $("#taskList").addEventListener("click",e=>{const edit=e.target.closest("[data-edit-task]"),del=e.target.closest("[data-delete-task]");if(edit)taskForm(tasks.find(t=>t.id===edit.dataset.editTask));if(del)removeTask(del.dataset.deleteTask)});
-  $("#taskList").addEventListener("change",async e=>{if(e.target.matches("[data-task-status]")){try{const saved=await updateRow("tasks",e.target.dataset.taskStatus,{status:e.target.value});tasks=tasks.map(t=>t.id===saved.id?saved:t);renderTasks();renderDashboard()}catch(err){toast(err.message)}}});
-  $("#addExamBtn").addEventListener("click",()=>examForm());$("#examSearch").addEventListener("input",renderExams);$$("[data-exam-filter]").forEach(b=>b.addEventListener("click",()=>{examFilter=b.dataset.examFilter;$$("[data-exam-filter]").forEach(x=>x.classList.toggle("active",x===b));renderExams()}));
-  $("#examList").addEventListener("click",e=>{const b=e.target.closest("[data-open-exam]");if(b){selectedExam=b.dataset.openExam;renderExams()}});
-  $("#examWorkspace").addEventListener("click",async e=>{if(e.target.id==="toggleAnswer")$("#answerReveal").classList.toggle("hidden");if(e.target.id==="copyQuestion"){const ex=exams.find(x=>x.id===selectedExam);await navigator.clipboard.writeText(ex.question);toast("คัดลอกโจทย์แล้ว")}const edit=e.target.closest("[data-edit-exam]"),del=e.target.closest("[data-delete-exam]");if(edit)examForm(exams.find(x=>x.id===edit.dataset.editExam));if(del)deleteExam(del.dataset.deleteExam)});
-  $("#addPlanBtn").addEventListener("click",()=>planForm());$("#plannerDate").addEventListener("change",e=>{plannerDay=e.target.value;renderPlanner()});$("#prevDay").addEventListener("click",()=>{plannerDay=dateOffset(plannerDay,-1);renderPlanner()});$("#nextDay").addEventListener("click",()=>{plannerDay=dateOffset(plannerDay,1);renderPlanner()});$("#todayBtn").addEventListener("click",()=>{plannerDay=todayISO();renderPlanner()});
-  $("#plannerTimeline").addEventListener("click",e=>{const edit=e.target.closest("[data-edit-plan]"),del=e.target.closest("[data-delete-plan]");if(edit)planForm(plans.find(p=>p.id===edit.dataset.editPlan));if(del)(async()=>{if(confirm("ลบกิจกรรมนี้หรือไม่?")){await deleteRow("planner_items",del.dataset.deletePlan);plans=plans.filter(p=>p.id!==del.dataset.deletePlan);renderPlanner();renderDashboard();toast("ลบกิจกรรมแล้ว")}})()});
-  $("#plannerTodos").addEventListener("change",e=>{if(e.target.matches("[data-plan-check]"))togglePlan(e.target.dataset.planCheck,e.target.checked)});
-  $("#saveNoteBtn").addEventListener("click",()=>{localStorage.setItem("llp-note-"+plannerDay,$("#dailyNote").value);toast("บันทึกโน้ตในเบราว์เซอร์นี้แล้ว")});
-  $$(".timer-mode").forEach(b=>b.addEventListener("click",()=>setTimerMode(b.dataset.mode)));$("#timerStart").addEventListener("click",startTimer);$("#timerReset").addEventListener("click",()=>{timerRunning=false;clearInterval(timerInterval);timerRemaining=timerSeconds;$("#timerStart").textContent="เริ่มโฟกัส";updateTimerUI()});$("#focusMinutes").addEventListener("change",()=>{if(timerMode==="focus")setTimerMode("focus")});$("#breakMinutes").addEventListener("change",()=>{if(timerMode==="short")setTimerMode("short")});
-  $$(".sound-card").forEach(b=>b.addEventListener("click",()=>playSound(b.dataset.sound)));$("#soundToggle").addEventListener("click",()=>activeSound?stopSound():playSound("rain"));$("#volumeControl").addEventListener("input",()=>{const gain=soundNodes.find(n=>n instanceof GainNode);if(gain)gain.gain.value=Number($("#volumeControl").value)/100*.22});
-  $("#modalClose").addEventListener("click",closeModal);$("#modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")closeModal()});document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
-}
-async function boot(){
-  bindEvents();setTodayHeader();$("#plannerDate").value=plannerDay;
-  if(!initSupabase())return;
-  const {data:{session}}=await db.auth.getSession();if(session)await startApp(session.user);
-  db.auth.onAuthStateChange((_event,session)=>{if(session&&!currentUser)startApp(session.user)});
-  setTimerMode("focus");
-}
-document.addEventListener("DOMContentLoaded",boot);
+            container.innerHTML = tableHTML;
+        }
+
+        function renderTasks() {
+            const tbody = document.getElementById('tasks-table-body');
+            const todayContainer = document.getElementById('today-tasks-container');
+            if (!tbody || !todayContainer) return;
+
+            tbody.innerHTML = '';
+            todayContainer.innerHTML = '';
+
+            const today = new Date().toISOString().split('T')[0];
+
+            tasks.forEach(task => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-50 transition-all';
+                row.innerHTML = `
+                    <td class="p-3.5 font-bold text-slate-800">${task.name}</td>
+                    <td class="p-3.5 text-slate-600">${task.category}</td>
+                    <td class="p-3.5 text-slate-600">${task.start} - ${task.end}</td>
+                    <td class="p-3.5">
+                        <div class="flex items-center gap-2">
+                            <div class="w-20 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-blue-600 rounded-full" style="width:${task.progress}%"></div>
+                            </div>
+                            <span class="text-xs font-bold text-slate-600">${task.progress}%</span>
+                        </div>
+                    </td>
+                    <td class="p-3.5 text-right">
+                        <button onclick="editTask('${task.id}')" class="text-blue-600 hover:text-blue-800 mr-2">แก้ไข</button>
+                        <button onclick="deleteTask('${task.id}')" class="text-red-500 hover:text-red-700">ลบ</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+
+                if (task.start <= today && task.end >= today) {
+                    const item = document.createElement('div');
+                    item.className = 'p-3 bg-slate-50 border border-slate-200 rounded-xl';
+                    item.innerHTML = `
+                        <p class="font-bold text-xs text-slate-800">${task.name}</p>
+                        <p class="text-[10px] text-slate-500 mt-1">${task.progress}% complete</p>
+                    `;
+                    todayContainer.appendChild(item);
+                }
+            });
+
+            initGanttChart();
+        }
+
+        function resetTaskForm() {
+            const form = document.getElementById('task-form');
+            if (form) form.reset();
+            document.getElementById('task-id').value = '';
+            document.getElementById('task-progress-val').innerText = '0%';
+            document.getElementById('task-submit-btn').querySelector('span').innerText = 'บันทึก Task';
+        }
+
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            document.getElementById('task-id').value = task.id;
+            document.getElementById('task-name').value = task.name;
+            document.getElementById('task-category').value = task.category;
+            document.getElementById('task-start').value = task.start;
+            document.getElementById('task-end').value = task.end;
+            document.getElementById('task-progress').value = task.progress;
+            document.getElementById('task-progress-val').innerText = task.progress + '%';
+            document.getElementById('task-submit-btn').querySelector('span').innerText = 'อัปเดต Task';
+            document.getElementById('task-form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function deleteTask(id) {
+            if (!confirm('ต้องการลบภาระงานนี้หรือไม่?')) return;
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+        }
+
+        document.getElementById('task-form')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const id = document.getElementById('task-id').value;
+            const taskData = {
+                id: id || Date.now().toString(),
+                name: document.getElementById('task-name').value,
+                category: document.getElementById('task-category').value,
+                start: document.getElementById('task-start').value,
+                end: document.getElementById('task-end').value,
+                progress: parseInt(document.getElementById('task-progress').value)
+            };
+
+            if (id) {
+                const index = tasks.findIndex(t => t.id === id);
+                if (index !== -1) tasks[index] = taskData;
+            } else {
+                tasks.push(taskData);
+            }
+
+            renderTasks();
+            resetTaskForm();
+        });
+
+        // AUTHENTICATION SYSTEM
+        function switchAuthMode(mode) {
+            authMode = mode;
+            document.getElementById('auth-login-form').classList.toggle('hidden', mode !== 'login');
+            document.getElementById('auth-register-form').classList.toggle('hidden', mode !== 'register');
+        }
+
+        function setAuthUserType(type) {
+            authUserType = type;
+            const studentBtn = document.getElementById('auth-type-student');
+            const adminBtn = document.getElementById('auth-type-admin');
+
+            if (studentBtn && adminBtn) {
+                studentBtn.className = type === 'student'
+                    ? 'flex-1 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs'
+                    : 'flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs';
+                adminBtn.className = type === 'admin'
+                    ? 'flex-1 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs'
+                    : 'flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs';
+            }
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            if (!email || !password) {
+                alert('กรุณากรอกอีเมลและรหัสผ่าน');
+                return;
+            }
+
+            const savedUsers = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
+            const user = savedUsers.find(u => u.email === email && u.password === password);
+
+            if (!user) {
+                alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+                return;
+            }
+
+            if (authUserType === 'admin' && user.role !== 'admin') {
+                alert('บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานผู้ดูแลระบบ');
+                return;
+            }
+
+            currentUser = user;
+            document.getElementById('auth-modal').classList.add('hidden');
+            updateUserInterface();
+            alert('เข้าสู่ระบบสำเร็จ');
+        }
+
+        function handleRegister(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('register-name').value.trim();
+            const email = document.getElementById('register-email').value.trim();
+            const password = document.getElementById('register-password').value;
+            const confirmPassword = document.getElementById('register-confirm-password').value;
+
+            if (!name || !email || !password) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                alert('รหัสผ่านไม่ตรงกัน');
+                return;
+            }
+
+            const domain = Object.values(DOMAINS).find(d => email.endsWith(d));
+            if (!domain) {
+                alert('กรุณาใช้อีเมลมหาวิทยาลัยที่กำหนด');
+                return;
+            }
+
+            const savedUsers = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
+            if (savedUsers.some(u => u.email === email)) {
+                alert('อีเมลนี้ถูกลงทะเบียนแล้ว');
+                return;
+            }
+
+            const newUser = {
+                name,
+                email,
+                password,
+                role: 'student',
+                university: Object.keys(DOMAINS).find(key => DOMAINS[key] === domain)
+            };
+
+            savedUsers.push(newUser);
+            localStorage.setItem('lawHubUsers', JSON.stringify(savedUsers));
+            alert('สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ');
+            switchAuthMode('login');
+        }
+                    tableHTML += `</tr>`;
+                });
+            }
+
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = tableHTML;
+        }
+
+        function renderTasks() {
+            const tbody = document.getElementById('tasks-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            let totalLaw = 0;
+            let sumProg = 0;
+            let completedCount = 0;
+            let inProgressCount = 0;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayContainer = document.getElementById('today-tasks-container');
+            if (todayContainer) todayContainer.innerHTML = '';
+            let todayTaskFound = false;
+
+            tasks.forEach(t => {
+                const prog = parseInt(t.progress);
+                sumProg += prog;
+                if (t.category === 'Law') totalLaw++;
+                if (prog === 100) completedCount++;
+                else inProgressCount++;
+
+                if (t.start <= todayStr && t.end >= todayStr && todayContainer) {
+                    todayTaskFound = true;
+                    const todayCard = document.createElement('div');
+                    todayCard.className = "p-3 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-1.5";
+                    todayCard.innerHTML = `
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-bold text-slate-800 line-clamp-1">${t.name}</span>
+                            <span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-extrabold rounded">${t.progress}%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-blue-600 h-full" style="width: ${t.progress}%"></div>
+                        </div>
+                        <p class="text-[10px] text-slate-400">กำหนดส่ง: ${t.end}</p>
+                    `;
+                    todayContainer.appendChild(todayCard);
+                }
+
+                const endDateObj = new Date(t.end);
+                const todayObj = new Date(todayStr);
+                const diffTime = endDateObj - todayObj;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                let dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">เหลือ ${diffDays} วัน</span>`;
+                if (prog === 100) dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">เสร็จสิ้น</span>`;
+                else if (diffDays < 0) dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">เกินกำหนด</span>`;
+                else if (diffDays <= 3) dayBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">เหลือ ${diffDays} วัน (ด่วน)</span>`;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 border-b border-slate-100 text-xs";
+                tr.innerHTML = `
+                    <td class="p-3 font-semibold text-slate-800">${t.name}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${t.category === 'Law' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}">${t.category}</span></td>
+                    <td class="p-3 text-slate-500 text-[11px]">
+                        <div>${t.start} ถึง ${t.end}</div>
+                        <div class="mt-0.5">${dayBadge}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-20 bg-slate-200 h-2 rounded-full overflow-hidden">
+                                <div class="bg-blue-600 h-full" style="width: ${t.progress}%"></div>
+                            </div>
+                            <span class="font-bold text-xs text-blue-600">${t.progress}%</span>
+                        </div>
+                    </td>
+                    <td class="p-3 text-right">
+                        <button onclick="editTask('${t.id}')" class="text-blue-600 hover:underline text-xs mr-2">แก้ไข</button>
+                        <button onclick="deleteTask('${t.id}')" class="text-red-500 hover:underline text-xs">ลบ</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (!todayTaskFound && todayContainer) {
+                todayContainer.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">ไม่มีภาระงานที่ต้องทำในวันนี้</p>`;
+            }
+
+            const avgProg = tasks.length ? Math.round(sumProg / tasks.length) : 0;
+            const headerPercent = document.getElementById('header-total-progress-percent');
+            if (headerPercent) headerPercent.innerText = `${avgProg}%`;
+
+            const headerBar = document.getElementById('header-total-progress-bar');
+            if (headerBar) headerBar.style.width = `${avgProg}%`;
+
+            const statTotal = document.getElementById('stat-total-tasks');
+            if (statTotal) statTotal.innerText = tasks.length;
+
+            const statInProg = document.getElementById('stat-in-progress-tasks');
+            if (statInProg) statInProg.innerText = inProgressCount;
+
+            const statComp = document.getElementById('stat-completed-tasks');
+            if (statComp) statComp.innerText = completedCount;
+
+            const statLaw = document.getElementById('stat-law-tasks');
+            if (statLaw) statLaw.innerText = totalLaw;
+
+            initGanttChart();
+        }
+
+        let ganttChartObj = null;
+
+        function saveTask(e) {
+            e.preventDefault();
+            const id = document.getElementById('task-id').value;
+            const name = document.getElementById('task-name').value;
+            const category = document.getElementById('task-category').value;
+            const start = document.getElementById('task-start').value;
+            const end = document.getElementById('task-end').value;
+            const progress = document.getElementById('task-progress').value;
+
+            if (id) {
+                const idx = tasks.findIndex(t => t.id === id);
+                if (idx !== -1) {
+                    tasks[idx] = { id, name, category, start, end, progress: parseInt(progress) };
+                }
+            } else {
+                tasks.push({
+                    id: Date.now().toString(),
+                    name,
+                    category,
+                    start,
+                    end,
+                    progress: parseInt(progress)
+                });
+            }
+
+            resetTaskForm();
+            renderTasks();
+        }
+
+        function resetTaskForm() {
+            document.getElementById('task-id').value = '';
+            document.getElementById('task-name').value = '';
+            document.getElementById('task-category').value = 'Law';
+            document.getElementById('task-start').value = getRelativeDate(0);
+            document.getElementById('task-end').value = getRelativeDate(7);
+            document.getElementById('task-progress').value = 0;
+            document.getElementById('task-progress-val').innerText = '0%';
+            document.getElementById('task-submit-btn').innerHTML = `<i data-lucide="save" class="w-4 h-4"></i><span>บันทึก Task</span>`;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+            document.getElementById('task-id').value = task.id;
+            document.getElementById('task-name').value = task.name;
+            document.getElementById('task-category').value = task.category;
+            document.getElementById('task-start').value = task.start;
+            document.getElementById('task-end').value = task.end;
+            document.getElementById('task-progress').value = task.progress;
+            document.getElementById('task-progress-val').innerText = task.progress + '%';
+            document.getElementById('task-submit-btn').innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>อัปเดต Task</span>`;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+        }
+
+        // AUTH & NAVIGATION HANDLERS
+        function switchAuthTab(mode) {
+            authMode = mode;
+            const loginBtn = document.getElementById('tab-login-btn');
+            const regBtn = document.getElementById('tab-reg-btn');
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
+
+            if (mode === 'login') {
+                loginBtn.className = "flex-1 py-3.5 text-xs font-extrabold text-center border-b-2 border-blue-600 text-blue-600 flex items-center justify-center gap-1.5 transition-all";
+                regBtn.className = "flex-1 py-3.5 text-xs font-extrabold text-center border-b-2 border-transparent text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1.5 transition-all";
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+            } else {
+                regBtn.className = "flex-1 py-3.5 text-xs font-extrabold text-center border-b-2 border-blue-600 text-blue-600 flex items-center justify-center gap-1.5 transition-all";
+                loginBtn.className = "flex-1 py-3.5 text-xs font-extrabold text-center border-b-2 border-transparent text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1.5 transition-all";
+                regForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+            }
+        }
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            if (!email || !password) {
+                alert('กรุณากรอกอีเมลและรหัสผ่าน');
+                return;
+            }
+
+            const domain = Object.values(DOMAINS).find(d => email.endsWith(d));
+            if (!domain) {
+                alert('กรุณาใช้อีเมลมหาวิทยาลัยที่กำหนด');
+                return;
+            }
+
+            if (authUserType === 'admin') {
+                if (email !== 'admin@lawhub.com' || password !== 'admin123') {
+                    alert('อีเมลหรือรหัสผ่านผู้ดูแลระบบไม่ถูกต้อง');
+                    return;
+                }
+                currentUser = { name: 'Administrator', email, role: 'admin' };
+            } else {
+                const users = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
+                const user = users.find(u => u.email === email && u.password === password);
+                if (!user) {
+                    alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+                    return;
+                }
+                currentUser = user;
+            }
+
+            document.getElementById('auth-modal').classList.add('hidden');
+            updateUserInterface();
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('register-name').value.trim();
+            const email = document.getElementById('register-email').value.trim();
+            const password = document.getElementById('register-password').value;
+            const confirmPassword = document.getElementById('register-confirm-password').value;
+
+            if (!name || !email || !password || !confirmPassword) {
+                alert('กรุณากรอกข้อมูลให้ครบทุกช่อง');
+                return;
+            }
+
+            const domain = Object.values(DOMAINS).find(d => email.endsWith(d));
+            if (!domain) {
+                alert('กรุณาใช้อีเมลมหาวิทยาลัยที่กำหนด');
+                return;
+            }
+
+            if (password.length < 6) {
+                alert('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                alert('รหัสผ่านไม่ตรงกัน');
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem('lawHubUsers') || '[]');
+            if (users.some(u => u.email === email)) {
+                alert('อีเมลนี้ถูกลงทะเบียนแล้ว');
+                return;
+            }
+
+            const uniKey = Object.keys(DOMAINS).find(key => DOMAINS[key] === domain);
+            users.push({
+                name,
+                email,
+                password,
+                university: UNI_NAMES[uniKey],
+                role: 'student'
+            });
+            localStorage.setItem('lawHubUsers', JSON.stringify(users));
+
+            alert('สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ');
+            switchAuthTab('login');
+            document.getElementById('login-email').value = email;
+        }
+
+        function updateUserInterface() {
+            if (!currentUser) return;
+            const userName = document.getElementById('header-user-name');
+            const userEmail = document.getElementById('header-user-email');
+            if (userName) userName.innerText = currentUser.name;
+            if (userEmail) userEmail.innerText = currentUser.email;
+
+            const adminPanelBtn = document.getElementById('admin-panel-btn');
+            if (adminPanelBtn) {
+                if (currentUser.role === 'admin') adminPanelBtn.classList.remove('hidden');
+                else adminPanelBtn.classList.add('hidden');
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById('auth-modal').classList.remove('hidden');
+            switchAuthTab('login');
+        }
+
+        function showSection(sectionName) {
+            document.querySelectorAll('main section').forEach(section => section.classList.add('hidden'));
+            const target = document.getElementById(`section-${sectionName}`);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('bg-blue-50', 'text-blue-700');
+                item.classList.add('text-slate-600');
+            });
+
+            const activeNav = document.querySelector(`[data-section="${sectionName}"]`);
+            if (activeNav) {
+                activeNav.classList.add('bg-blue-50', 'text-blue-700');
+                activeNav.classList.remove('text-slate-600');
+            }
+
+            if (sectionName === 'dashboard') renderTasks();
+            if (sectionName === 'exambank') renderExams();
+            if (sectionName === 'reviews') renderCourseReviews();
+            if (sectionName === 'sheets') renderSummarySheets();
+        }
+
+        // EXAM BANK & DISCUSSION
+        function renderExams() {
+            const container = document.getElementById('exams-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const approvedExams = exams.filter(exam => exam.status === 'Approved');
+            if (approvedExams.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 py-8">ไม่พบข้อสอบที่ค้นหา</p>';
+                return;
+            }
+
+            approvedExams.forEach(exam => {
+                const card = document.createElement('div');
+                card.className = 'glass-card-light p-5 rounded-3xl space-y-4';
+                card.innerHTML = `
+                    <div class="flex flex-wrap justify-between items-start gap-2">
+                        <div>
+                            <p class="text-xs text-blue-600 font-bold">${exam.code} • ${exam.year}</p>
+                            <h3 class="font-bold text-slate-800 text-base">${exam.name}</h3>
+                            <p class="text-xs text-slate-500 mt-1">${exam.university} | ${exam.professor}</p>
+                        </div>
+                        <span class="px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full">อนุมัติแล้ว</span>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-2xl space-y-2">
+                        <p class="text-xs font-bold text-slate-700">โจทย์ข้อสอบ</p>
+                        <p class="text-sm text-slate-800 leading-relaxed">${exam.question}</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="toggleExamAnswer(${exam.id})" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl">ดูธงคำตอบ</button>
+                        <button onclick="toggleExamComments(${exam.id})" class="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl">ความคิดเห็น (${exam.comments.length})</button>
+                    </div>
+                    <div id="answer-${exam.id}" class="hidden p-4 bg-blue-50 border border-blue-100 rounded-2xl space-y-2">
+                        <p class="text-xs font-bold text-blue-800">ธงคำตอบ / แนวทางการวินิจฉัย</p>
+                        <p class="text-sm text-slate-800 leading-relaxed">${exam.answerKey}</p>
+                        <p class="text-xs font-bold text-blue-800 mt-2">เกณฑ์การให้คะแนน</p>
+                        <p class="text-xs text-slate-700 whitespace-pre-line">${exam.rubric}</p>
+                    </div>
+                    <div id="comments-${exam.id}" class="hidden space-y-3">
+                        <div id="comment-list-${exam.id}" class="space-y-2">
+                            ${exam.comments.map(c => `
+                                <div class="p-3 bg-slate-50 rounded-xl text-xs space-y-1">
+                                    <p class="font-bold text-slate-700">${c.user}</p>
+                                    <p class="text-slate-600">${c.text}</p>
+                                    <div class="flex justify-between items-center text-[10px] text-slate-400">
+                                        <span>${c.time}</span>
+                                        <span>เห็นด้วย ${c.agrees} คน</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <form onsubmit="addExamComment(event, ${exam.id})" class="flex gap-2">
+                            <input id="comment-input-${exam.id}" required placeholder="แสดงความคิดเห็น..." class="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none">
+                            <button class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl">ส่ง</button>
+                        </form>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleExamAnswer(id) {
+            document.getElementById(`answer-${id}`).classList.toggle('hidden');
+        }
+
+        function toggleExamComments(id) {
+            document.getElementById(`comments-${id}`).classList.toggle('hidden');
+        }
+
+        function addExamComment(e, examId) {
+            e.preventDefault();
+            const input = document.getElementById(`comment-input-${examId}`);
+            const exam = exams.find(x => x.id === examId);
+            if (!exam || !input.value.trim()) return;
+
+            exam.comments.push({
+                id: Date.now().toString(),
+                user: currentUser ? currentUser.email : 'ผู้ใช้งาน',
+                text: input.value.trim(),
+                time: 'เมื่อสักครู่',
+                agrees: 0,
+                reports: 0,
+                reportedBy: []
+            });
+            renderExams();
+            document.getElementById(`comments-${examId}`).classList.remove('hidden');
+        }
+
+        function filterExams() {
+            const keyword = document.getElementById('search-general').value.toLowerCase();
+            const code = document.getElementById('search-code').value.toLowerCase();
+            const name = document.getElementById('search-name').value.toLowerCase();
+            const prof = document.getElementById('search-prof').value.toLowerCase();
+            const uni = document.getElementById('search-uni').value;
+            const year = document.getElementById('search-year').value.toLowerCase();
+
+            const filtered = exams.filter(exam => {
+                return exam.status === 'Approved' &&
+                    (!keyword || `${exam.code} ${exam.name} ${exam.question}`.toLowerCase().includes(keyword)) &&
+                    (!code || exam.code.toLowerCase().includes(code)) &&
+                    (!name || exam.name.toLowerCase().includes(name)) &&
+                    (!prof || exam.professor.toLowerCase().includes(prof)) &&
+                    (!uni || exam.university === uni) &&
+                    (!year || exam.year.toLowerCase().includes(year));
+            });
+
+            const container = document.getElementById('exams-container');
+            if (!container) return;
+            const oldExams = exams;
+            exams = filtered;
+            renderExams();
+            exams = oldExams;
+        }
+        function setAuthUserType(type) {
+            authUserType = type;
+            const studBtn = document.getElementById('type-student-btn');
+            const genBtn = document.getElementById('type-general-btn');
+            const uniSelectContainer = document.getElementById('login-uni-select-container');
+            const regUniSelectContainer = document.getElementById('reg-uni-select-container');
+            const loginStudentHint = document.getElementById('login-student-hint');
+            const regStudentHint = document.getElementById('reg-student-hint');
+            const regDomainBadge = document.getElementById('reg-domain-badge');
+
+            if (type === 'student') {
+                studBtn.className = "py-2.5 px-3 text-xs font-bold rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1.5 shadow-sm transition-all";
+                genBtn.className = "py-2.5 px-3 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-all";
+                if (uniSelectContainer) uniSelectContainer.classList.remove('hidden');
+                if (regUniSelectContainer) regUniSelectContainer.classList.remove('hidden');
+                if (loginStudentHint) loginStudentHint.classList.remove('hidden');
+                if (regStudentHint) regStudentHint.classList.remove('hidden');
+                if (regDomainBadge) regDomainBadge.classList.remove('hidden');
+                updateLoginDomainHint();
+                updateRegDomainHint();
+            } else {
+                genBtn.className = "py-2.5 px-3 text-xs font-bold rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1.5 shadow-sm transition-all";
+                studBtn.className = "py-2.5 px-3 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-all";
+                if (uniSelectContainer) uniSelectContainer.classList.add('hidden');
+                if (regUniSelectContainer) regUniSelectContainer.classList.add('hidden');
+                if (loginStudentHint) loginStudentHint.classList.add('hidden');
+                if (regStudentHint) regStudentHint.classList.add('hidden');
+                if (regDomainBadge) regDomainBadge.classList.add('hidden');
+
+                const loginEmail = document.getElementById('login-email');
+                const regEmail = document.getElementById('reg-email');
+                if (loginEmail) loginEmail.placeholder = 'example@gmail.com';
+                if (regEmail) regEmail.placeholder = 'yourname@gmail.com';
+            }
+        }
+
+        function updateLoginDomainHint() {
+            if (authUserType !== 'student') return;
+            const uniSelect = document.getElementById('login-uni');
+            if (!uniSelect) return;
+            const uni = uniSelect.value;
+            const loginEmail = document.getElementById('login-email');
+            const placeholders = {
+                TU: 'student@dome.tu.ac.th',
+                CU: 'student@student.chula.ac.th',
+                RU: 'student@rumail.ru.ac.th'
+            };
+            if (loginEmail && placeholders[uni]) {
+                loginEmail.placeholder = placeholders[uni];
+            }
+        }
+
+        function updateRegDomainHint() {
+            if (authUserType !== 'student') return;
+            const uniSelect = document.getElementById('reg-uni');
+            if (!uniSelect) return;
+            const uni = uniSelect.value;
+            const reqDomainText = document.getElementById('required-domain-text');
+            const regEmail = document.getElementById('reg-email');
+            const placeholders = {
+                TU: 'student@dome.tu.ac.th',
+                CU: 'student@student.chula.ac.th',
+                RU: 'student@rumail.ru.ac.th'
+            };
+            if (reqDomainText && DOMAINS[uni]) {
+                reqDomainText.innerText = DOMAINS[uni];
+            }
+            if (regEmail && placeholders[uni]) {
+                regEmail.placeholder = placeholders[uni];
+            }
+        }
+
+        function updateDomainHint() {
+            updateRegDomainHint();
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const uniSelect = document.getElementById('login-uni');
+            const uniKey = uniSelect ? uniSelect.value : 'TU';
+
+            if (authUserType === 'student') {
+                const expected = DOMAINS[uniKey];
+                if (!email.toLowerCase().endsWith(expected)) {
+                    showAuthError(`อีเมลนักศึกษาต้องลงท้ายด้วย ${expected}`);
+                    return;
+                }
+            }
+
+            currentUser = {
+                email,
+                type: authUserType,
+                university: authUserType === 'student' ? UNI_NAMES[uniKey] : 'บุคคลทั่วไป'
+            };
+            showDashboard();
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const email = document.getElementById('reg-email').value.trim();
+            const uniSelect = document.getElementById('reg-uni');
+            const uniKey = uniSelect ? uniSelect.value : 'TU';
+
+            if (authUserType === 'student') {
+                const expected = DOMAINS[uniKey];
+                if (!email.toLowerCase().endsWith(expected)) {
+                    showAuthError(`อีเมลสมัครต้องลงท้ายด้วย ${expected}`);
+                    return;
+                }
+            }
+
+            currentUser = {
+                email,
+                type: authUserType,
+                university: authUserType === 'student' ? UNI_NAMES[uniKey] : 'บุคคลทั่วไป'
+            };
+            showDashboard();
+        }
+
+        function showAuthError(msg) {
+            const errBox = document.getElementById('auth-error-msg');
+            const errText = document.getElementById('auth-error-text');
+            if (errBox && errText) {
+                errText.innerText = msg;
+                errBox.classList.remove('hidden');
+            }
+        }
+
+        function showDashboard() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+
+            document.getElementById('nav-user-email').innerText = currentUser.email;
+            document.getElementById('nav-user-badge').innerText = currentUser.university;
+
+            renderTasks();
+            renderExams();
+            renderReviews();
+            renderSheets();
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById('main-app').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+        }
+
+        function switchTab(tabName) {
+            const tabs = ['gantt', 'exambank', 'pomodoro', 'course-reviews', 'summary-sheets'];
+            tabs.forEach(t => {
+                const section = document.getElementById(`section-${t}`);
+                const btn = document.getElementById(`nav-tab-${t}`);
+                if (section) {
+                    if (t === tabName) section.classList.remove('hidden');
+                    else section.classList.add('hidden');
+                }
+                if (btn) {
+                    if (t === tabName) {
+                        btn.className = "nav-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-md transition-all";
+                    } else {
+                        btn.className = "nav-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-all";
+                    }
+                }
+            });
+
+            if (tabName === 'gantt') {
+                setTimeout(() => {
+                    initGanttChart();
+                }, 100);
+            }
+        }
+
+        // EXAM HUB FUNCTIONS
+        function switchExamSubTab(sub) {
+            ['search', 'upload', 'approval'].forEach(s => {
+                const view = document.getElementById(`exam-subtab-${s}`);
+                const btn = document.getElementById(`exam-tab-${s}`);
+                if (view) {
+                    if (s === sub) view.classList.remove('hidden');
+                    else view.classList.add('hidden');
+                }
+                if (btn) {
+                    if (s === sub) {
+                        btn.className = "px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-blue-600 text-white shadow-md transition-all";
+                    } else {
+                        btn.className = "px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all border border-slate-200";
+                    }
+                }
+            });
+        }
+
+        function renderExams() {
+            const container = document.getElementById('exams-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const gen = document.getElementById('search-general')?.value.toLowerCase() || '';
+            const code = document.getElementById('search-code')?.value.toLowerCase() || '';
+            const name = document.getElementById('search-name')?.value.toLowerCase() || '';
+            const prof = document.getElementById('search-prof')?.value.toLowerCase() || '';
+            const uni = document.getElementById('search-uni')?.value || '';
+            const year = document.getElementById('search-year')?.value.toLowerCase() || '';
+
+            const filtered = exams.filter(e => {
+                if (e.status !== 'Approved') return false;
+                if (gen && !e.name.toLowerCase().includes(gen) && !e.code.toLowerCase().includes(gen) && !e.question.toLowerCase().includes(gen)) return false;
+                if (code && !e.code.toLowerCase().includes(code)) return false;
+                if (name && !e.name.toLowerCase().includes(name)) return false;
+                if (prof && !e.professor.toLowerCase().includes(prof)) return false;
+                if (uni && e.university !== uni) return false;
+                if (year && !e.year.toLowerCase().includes(year)) return false;
+                return true;
+            });
+
+            filtered.forEach(e => {
+                const card = document.createElement('div');
+                card.className = "glass-card-light p-6 rounded-3xl space-y-4";
+
+                let commentsHTML = e.comments.map(c => `
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-1">
+                        <div class="flex justify-between items-center text-slate-500">
+                            <span class="font-bold text-slate-700">${c.user}</span>
+                            <span>${c.time}</span>
+                        </div>
+                        <p class="text-slate-700 leading-relaxed">${c.text}</p>
+                        <div class="flex items-center gap-3 mt-2">
+                            <button onclick="agreeComment(${e.id}, '${c.id}')" class="text-blue-600 font-bold hover:underline">👍 เห็นด้วย (${c.agrees})</button>
+                            <button onclick="reportComment(${e.id}, '${c.id}')" class="text-red-500 font-bold hover:underline">รายงาน</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                card.innerHTML = `
+                    <div class="flex flex-wrap justify-between items-start gap-3">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-black text-blue-600">${e.code}</span>
+                                <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold">${e.year}</span>
+                            </div>
+                            <h3 class="font-bold text-slate-800 text-base">${e.name}</h3>
+                            <p class="text-xs text-slate-500 mt-1">${e.university} | ${e.professor}</p>
+                        </div>
+                        <span class="px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full border border-emerald-100">อนุมัติแล้ว</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl space-y-2">
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">โจทย์ข้อสอบ (Question)</p>
+                        <p class="text-sm text-slate-800 leading-relaxed">${e.question}</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="toggleExamDetail(${e.id}, 'answer')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm">เฉลย / ธงคำตอบ</button>
+                        <button onclick="toggleExamDetail(${e.id}, 'rubric')" class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition-all border border-indigo-100">เกณฑ์การให้คะแนน</button>
+                        <button onclick="toggleExamDetail(${e.id}, 'comments')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all">💬 อภิปราย (${e.comments.length})</button>
+                    </div>
+                    <div id="exam-detail-${e.id}-answer" class="hidden p-4 bg-blue-50 border border-blue-100 rounded-2xl text-sm text-slate-800 leading-relaxed whitespace-pre-line">${e.answerKey}</div>
+                    <div id="exam-detail-${e.id}-rubric" class="hidden p-4 bg-indigo-50 border border-indigo-100 rounded-2xl text-xs text-slate-800 leading-relaxed whitespace-pre-line">${e.rubric}</div>
+                    <div id="exam-detail-${e.id}-comments" class="hidden space-y-3 pt-2">
+                        <div class="space-y-2">${commentsHTML || '<p class="text-xs text-slate-400">ยังไม่มีความคิดเห็น</p>'}</div>
+                        <form onsubmit="addComment(event, ${e.id})" class="flex gap-2">
+                            <input id="new-comment-${e.id}" type="text" placeholder="แสดงความคิดเห็นหรือถามข้อสงสัย..." class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <button type="submit" class="px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-xl">ส่ง</button>
+                        </form>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+        function openUploadSheetModal() {
+            document.getElementById('upload-sheet-modal').classList.remove('hidden');
+        }
+
+        function closeUploadSheetModal() {
+            document.getElementById('upload-sheet-modal').classList.add('hidden');
+        }
+
+        function saveSummarySheet(e) {
+            e.preventDefault();
+            summarySheets.push({
+                id: 's' + Date.now(),
+                title: document.getElementById('sheet-title').value,
+                code: document.getElementById('sheet-code').value,
+                subject: document.getElementById('sheet-subject').value,
+                sec: document.getElementById('sheet-sec').value,
+                professor: document.getElementById('sheet-prof').value,
+                university: document.getElementById('sheet-uni').value,
+                desc: document.getElementById('sheet-desc').value,
+                author: currentUser ? currentUser.email : 'Community User',
+                downloads: 0,
+                fileType: 'PDF'
+            });
+            closeUploadSheetModal();
+            renderSheets();
+        }
+
+        function downloadSheet(id) {
+            const sheet = summarySheets.find(s => s.id === id);
+            if (sheet) {
+                sheet.downloads++;
+                renderSheets();
+                alert(`เปิดพรีวิวไฟล์: ${sheet.title}`);
+            }
+        }
+
+        // REVIEWS FUNCTIONS
+        function renderReviews() {
+            const container = document.getElementById('reviews-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const gen = document.getElementById('review-search-text')?.value.toLowerCase() || '';
+            const code = document.getElementById('review-search-code')?.value.toLowerCase() || '';
+            const name = document.getElementById('review-search-name')?.value.toLowerCase() || '';
+            const sec = document.getElementById('review-search-sec')?.value.toLowerCase() || '';
+            const prof = document.getElementById('review-search-prof')?.value.toLowerCase() || '';
+            const uni = document.getElementById('review-search-uni')?.value || '';
+
+            const filtered = courseReviews.filter(r => {
+                if (gen && !r.subject.toLowerCase().includes(gen) && !r.professor.toLowerCase().includes(gen) && !r.comment.toLowerCase().includes(gen)) return false;
+                if (code && !r.subject.toLowerCase().includes(code)) return false;
+                if (name && !r.subject.toLowerCase().includes(name)) return false;
+                if (sec && !r.sec.toLowerCase().includes(sec)) return false;
+                if (prof && !r.professor.toLowerCase().includes(prof)) return false;
+                if (uni && r.university !== uni) return false;
+                return true;
+            });
+
+            filtered.forEach(r => {
+                const card = document.createElement('div');
+                card.className = "glass-card-light p-5 rounded-3xl space-y-3";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-black rounded">${r.sec}</span>
+                            <h4 class="font-bold text-sm text-slate-800 mt-1">${r.subject}</h4>
+                            <p class="text-xs text-slate-500">อาจารย์ผู้สอน: ${r.professor} (${r.university})</p>
+                        </div>
+                        <span class="text-amber-500 font-black text-sm">⭐ ${r.rating}/5</span>
+                    </div>
+                    <p class="text-xs text-slate-700 bg-slate-50 p-3 rounded-2xl border border-slate-200 leading-relaxed">${r.comment}</p>
+                    <div class="flex justify-between items-center text-[11px] text-slate-400">
+                        <span>สไตล์: ${r.style}</span>
+                        <span>โดย: ${r.author}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterReviews() {
+            renderReviews();
+        }
+
+        function resetReviewSearch() {
+            ['review-search-text', 'review-search-code', 'review-search-name', 'review-search-sec', 'review-search-prof'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const uni = document.getElementById('review-search-uni');
+            if (uni) uni.value = '';
+            renderReviews();
+        }
+
+        function openReviewModal() {
+            document.getElementById('add-review-modal').classList.remove('hidden');
+        }
+
+        function closeReviewModal() {
+            document.getElementById('add-review-modal').classList.add('hidden');
+        }
+
+        function saveCourseReview(e) {
+            e.preventDefault();
+            const anon = document.getElementById('rev-anon').checked;
+            courseReviews.push({
+                id: 'r' + Date.now(),
+                subject: document.getElementById('rev-subject').value,
+                sec: document.getElementById('rev-sec').value || 'Sec 01',
+                professor: document.getElementById('rev-prof').value,
+                university: document.getElementById('rev-uni').value,
+                year: document.getElementById('rev-year').value,
+                difficulty: document.getElementById('rev-diff').value,
+                rating: parseInt(document.getElementById('rev-rating').value),
+                style: document.getElementById('rev-style').value,
+                comment: document.getElementById('rev-comment').value,
+                author: anon ? 'ไม่ระบุตัวตน (Anonymous)' : (currentUser ? currentUser.email : 'นักศึกษา')
+            });
+            closeReviewModal();
+            renderReviews();
+        }
+
+        // TIMER & BRAINWAVES
+        let pomoInterval = null;
+        let pomoTimeLeft = 25 * 60;
+
+        function updatePomoDisplay() {
+            const m = Math.floor(pomoTimeLeft / 60);
+            const s = pomoTimeLeft % 60;
+            const disp = document.getElementById('pomo-display');
+            if (disp) disp.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function startPomodoro() {
+            if (pomoInterval) return;
+            document.getElementById('timer-start-btn').classList.add('hidden');
+            document.getElementById('timer-pause-btn').classList.remove('hidden');
+            pomoInterval = setInterval(() => {
+                if (pomoTimeLeft > 0) {
+                    pomoTimeLeft--;
+                    updatePomoDisplay();
+                } else {
+                    pausePomodoro();
+                    alert('🎉 หมดเวลาแล้ว! พักผ่อนสายตาได้เลย');
+                }
+            }, 1000);
+        }
+
+        function pausePomodoro() {
+            clearInterval(pomoInterval);
+            pomoInterval = null;
+            document.getElementById('timer-start-btn').classList.remove('hidden');
+            document.getElementById('timer-pause-btn').classList.add('hidden');
+        }
+
+        function resetPomodoro() {
+            pausePomodoro();
+            pomoTimeLeft = 25 * 60;
+            updatePomoDisplay();
+        }
+
+        function setTimerPreset(mins, label) {
+            pausePomodoro();
+            pomoTimeLeft = mins * 60;
+            document.getElementById('timer-mode-label').innerText = label;
+            updatePomoDisplay();
+        }
+
+        function openCustomTimerModal() {
+            document.getElementById('custom-timer-modal').classList.remove('hidden');
+        }
+
+        function closeCustomTimerModal() {
+            document.getElementById('custom-timer-modal').classList.add('hidden');
+        }
+
+        function applyCustomTimer() {
+            const val = parseInt(document.getElementById('custom-timer-input').value);
+            if (val && val > 0) {
+                setTimerPreset(val, 'Custom Session');
+            }
+            closeCustomTimerModal();
+        }
+
+        // ADMIN PANEL HANDLERS (EXAM APPROVAL & COMMENT MODERATION)
+        function switchAdminTab(adminTab) {
+            const pendingView = document.getElementById('admin-pending-exams-view');
+            const reportedView = document.getElementById('admin-reported-comments-view');
+            const examsBtn = document.getElementById('admin-subtab-exams-btn');
+            const reportsBtn = document.getElementById('admin-subtab-reports-btn');
+
+            if (adminTab === 'pendingExams') {
+                if (pendingView) pendingView.classList.remove('hidden');
+                if (reportedView) reportedView.classList.add('hidden');
+                if (examsBtn) examsBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white";
+                if (reportsBtn) reportsBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200";
+                renderPendingExams();
+            } else {
+                if (pendingView) pendingView.classList.add('hidden');
+                if (reportedView) reportedView.classList.remove('hidden');
+                if (reportsBtn) reportsBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white";
+                if (examsBtn) examsBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200";
+                renderReportedComments();
+            }
+        }
+
+        function renderPendingExams() {
+            const listContainer = document.getElementById('pending-exams-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
+
+            const pendingExams = exams.filter(e => e.status === 'Pending Admin Approval');
+            const badge = document.getElementById('pending-count-badge');
+            if (badge) badge.innerText = pendingExams.length;
+
+            if (pendingExams.length === 0) {
+                listContainer.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">ไม่มีข้อสอบที่รอการอนุมัติในขณะนี้</p>';
+                return;
+            }
+
+            pendingExams.forEach(e => {
+            pendingExams.forEach(e => {
+                const item = document.createElement('div');
+                item.className = "p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-xs";
+                item.innerHTML = `
+                    <div class="flex justify-between items-center font-bold text-slate-800">
+                        <span>[${e.code}] ${e.name} (${e.year})</span>
+                        <span class="text-amber-600">Pending Approval</span>
+                    </div>
+                    <p class="text-slate-600"><strong>ผู้สอน:</strong> ${e.professor}</p>
+                    <p class="text-slate-700 font-mono bg-white p-2.5 rounded-xl border border-slate-200">${e.question}</p>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button onclick="approveExam(${e.id})" class="px-3 py-1.5 bg-emerald-600 text-white rounded-xl font-bold">✅ อนุมัติ</button>
+                        <button onclick="rejectExam(${e.id})" class="px-3 py-1.5 bg-red-600 text-white rounded-xl font-bold">❌ ปฏิเสธ</button>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        function renderReportedComments() {
+            const listContainer = document.getElementById('reported-comments-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
+
+            let reportedItems = [];
+            exams.forEach(e => {
+                e.comments.forEach(c => {
+                    if (c.reports > 0) {
+                        reportedItems.push({ examId: e.id, examTitle: e.name, comment: c });
+                    }
+                });
+            });
+
+            if (reportedItems.length === 0) {
+                listContainer.innerHTML = '<p class="text-xs text-slate-400 py-6 text-center">ไม่มีความคิดเห็นที่ถูกรายงานในขณะนี้</p>';
+                return;
+            }
+
+            reportedItems.forEach(item => {
+                const c = item.comment;
+                const card = document.createElement('div');
+                card.className = "p-4 bg-red-50 border border-red-200 rounded-2xl space-y-2 text-xs";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center font-bold text-red-800">
+                        <span>วิชา: ${item.examTitle}</span>
+                        <span class="px-2 py-0.5 bg-red-200 text-red-900 rounded">ถูกรายงาน ${c.reports} ครั้ง</span>
+                    </div>
+                    <p class="text-slate-800"><strong>${c.user}:</strong> ${c.text}</p>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button onclick="dismissReport(${item.examId}, '${c.id}')" class="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-xl font-bold">ยกเลิกรายงาน</button>
+                        <button onclick="deleteComment(${item.examId}, '${c.id}')" class="px-3 py-1.5 bg-red-600 text-white rounded-xl font-bold">ลบคอมเมนต์</button>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        function approveExam(id) {
+            const exam = exams.find(e => e.id === id);
+            if (exam) {
+                exam.status = 'Approved';
+                renderPendingExams();
+                renderExams();
+            }
+        }
+
+        function rejectExam(id) {
+            exams = exams.filter(e => e.id !== id);
+            renderPendingExams();
+            renderExams();
+        }
+
+        function dismissReport(examId, commentId) {
+            const exam = exams.find(e => e.id === examId);
+            if (exam) {
+                const comment = exam.comments.find(c => c.id === commentId);
+                if (comment) {
+                    comment.reports = 0;
+                    renderReportedComments();
+                    renderExams();
+                }
+            }
+        }
+
+        function deleteComment(examId, commentId) {
+            const exam = exams.find(e => e.id === examId);
+            if (exam) {
+                exam.comments = exam.comments.filter(c => c.id !== commentId);
+                renderReportedComments();
+                renderExams();
+            }
+        }
+
+        let audioCtx = null;
+        function playBrainwave(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const badge = document.getElementById('audio-status-badge');
+            const title = document.getElementById('current-sound-title');
+            if (badge) badge.innerText = 'Playing';
+            if (title) title.innerText = `กำลังเล่นคลื่นเสียง: ${type.toUpperCase()}`;
+        }
+
+        function stopAudio() {
+            const badge = document.getElementById('audio-status-badge');
+            const title = document.getElementById('current-sound-title');
+            if (badge) badge.innerText = 'Ready';
+            if (title) title.innerText = 'เลือกคลื่นเสียงเพื่อเปิดเล่น';
+        }
+
+        // SETTINGS MODAL
+        function openSettingsModal() {
+            document.getElementById('user-settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('user-settings-modal').classList.add('hidden');
+        }
+
+        function switchSettingsTab(t) {
+            ['profile', 'security', 'pref', 'data'].forEach(tab => {
+                const view = document.getElementById(`set-view-${tab}`);
+                const btn = document.getElementById(`set-tab-${tab}`);
+                if (view) {
+                    if (tab === t) view.classList.remove('hidden');
+                    else view.classList.add('hidden');
+                }
+                if (btn) {
+                    if (tab === t) btn.className = "pb-2 text-blue-600 border-b-2 border-blue-600 font-bold";
+                    else btn.className = "pb-2 text-slate-400 border-b-2 border-transparent hover:text-slate-600 font-bold";
+                }
+            });
+        }
+
+        function saveUserSettings() {
+            alert('บันทึกข้อมูลการตั้งค่าเรียบร้อยแล้ว!');
+            closeSettingsModal();
+        }
+
+        function exportUserData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ tasks, summarySheets, courseReviews }));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", "law_hub_user_data.json");
+            dlAnchorElem.click();
+        }
+
+        function deleteAccount() {
+            if (confirm('คุณแน่ใจหรือว่าต้องการลบบัญชีผู้ใช้? ข้อมูลทั้งหมดจะถูกลบถาวร')) {
+                handleLogout();
+            }
+        }
+
+        // INITIALIZATION
+        window.onload = function() {
+            if (window.lucide) lucide.createIcons();
+            setAuthUserType('student');
+        };
