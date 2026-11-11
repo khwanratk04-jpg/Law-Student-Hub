@@ -74,6 +74,7 @@ function firebaseErrorMessage(error) {
         'auth/user-not-found': 'ไม่พบบัญชีนี้ กรุณาลงทะเบียนก่อน',
         'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
         'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+        'auth/invalid-login-credentials': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
         'auth/too-many-requests': 'มีการลองเข้าสู่ระบบหลายครั้งเกินไป กรุณารอสักครู่',
         'auth/network-request-failed': 'เชื่อมต่ออินเทอร์เน็ตไม่สำเร็จ'
     };
@@ -555,6 +556,7 @@ function firebaseErrorMessage(error) {
 
         async function handleLogin(e) {
             e.preventDefault();
+            hideAuthError();
             const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-pass').value;
             const uniSelect = document.getElementById('login-uni');
@@ -627,8 +629,20 @@ function firebaseErrorMessage(error) {
             const errBox = document.getElementById('auth-error-msg');
             const errText = document.getElementById('auth-error-text');
             if (errBox && errText) {
-                errText.innerText = msg;
+                errText.textContent = msg || 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน';
                 errBox.classList.remove('hidden');
+                errBox.style.display = 'flex';
+                errBox.setAttribute('role', 'alert');
+            } else {
+                alert(msg || 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน');
+            }
+        }
+
+        function hideAuthError() {
+            const errBox = document.getElementById('auth-error-msg');
+            if (errBox) {
+                errBox.classList.add('hidden');
+                errBox.style.display = 'none';
             }
         }
 
