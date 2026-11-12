@@ -46,7 +46,11 @@ async function loadCloudData() {
 
         // Load shared exam comments and attach them to matching exam cards.
         const sharedExamCommentsSnap = await firestore.collection('publicExamComments').get();
-        exams.forEach(exam => { exam.comments = []; });
+        // Preserve existing exam comments (including the built-in admin answers).
+        // Only initialize the comments array when an exam does not already have one.
+        exams.forEach(exam => {
+            if (!Array.isArray(exam.comments)) exam.comments = [];
+        });
         sharedExamCommentsSnap.forEach(doc => {
             const data = doc.data();
             const exam = exams.find(item => String(item.id) === String(data.examId));
