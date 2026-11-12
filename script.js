@@ -33,6 +33,16 @@ async function loadCloudData() {
         } else {
             await saveCloudDataNow();
         }
+
+        // Load shared course reviews so all signed-in users see the same list.
+        const sharedReviewsSnap = await firestore.collection('publicCourseReviews')
+            .orderBy('createdAt', 'desc').get();
+        if (!sharedReviewsSnap.empty) {
+            courseReviews = sharedReviewsSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        }
     } catch (error) {
         console.error('Firebase load error:', error);
         showAuthError('เข้าสู่ระบบได้ แต่โหลดข้อมูลจาก Firebase ไม่สำเร็จ กรุณาตรวจสอบการตั้งค่า Firestore');
@@ -1126,25 +1136,39 @@ function firebaseErrorMessage(error) {
             document.getElementById('add-review-modal').classList.add('hidden');
         }
 
-        function saveCourseReview(e) {
+        async function saveCourseReview(e) {
             e.preventDefault();
+            if (!firebaseAuth.currentUser) {
+                showAuthError('กรุณาเข้าสู่ระบบก่อนเขียนรีวิว');
+                return;
+            }
+
             const anon = document.getElementById('rev-anon').checked;
-            courseReviews.push({
-                id: 'r' + Date.now(),
-                subject: document.getElementById('rev-subject').value,
-                sec: document.getElementById('rev-sec').value || 'Sec 01',
-                professor: document.getElementById('rev-prof').value,
+            const review = {
+                subject: document.getElementById('rev-subject').value.trim(),
+                sec: document.getElementById('rev-sec').value.trim() || 'Sec 01',
+                professor: document.getElementById('rev-prof').value.trim(),
                 university: document.getElementById('rev-uni').value,
                 year: document.getElementById('rev-year').value,
                 difficulty: document.getElementById('rev-diff').value,
-                rating: parseInt(document.getElementById('rev-rating').value),
-                style: document.getElementById('rev-style').value,
-                comment: document.getElementById('rev-comment').value,
-                author: anon ? 'ไม่ระบุตัวตน (Anonymous)' : (currentUser ? currentUser.email : 'นักศึกษา')
-            });
-            closeReviewModal();
-            renderReviews();
-            saveCloudData();
+                rating: parseInt(document.getElementById('rev-rating').value, 10),
+                style: document.getElementById('rev-style').value.trim(),
+                comment: document.getElementById('rev-comment').value.trim(),
+                author: anon ? 'ไม่ระบุตัวตน (Anonymous)' : (currentUser ? currentUser.email : 'นักศึกษา'),
+                authorUid: firebaseAuth.currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                const docRef = await firestore.collection('publicCourseReviews').add(review);
+                courseReviews.unshift({ id: docRef.id, ...review, createdAt: new Date() });
+                closeReviewModal();
+                renderReviews();
+                alert('เผยแพร่รีวิวแล้ว ผู้ใช้ที่เข้าสู่ระบบคนอื่นจะเห็นรีวิวนี้ด้วย');
+            } catch (error) {
+                console.error('Shared review save error:', error);
+                alert('เผยแพร่รีวิวไม่สำเร็จ กรุณาตรวจสอบ Firestore Rules แล้วลองอีกครั้ง');
+            }
         }
 
         // TIMER & BRAINWAVES
