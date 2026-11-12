@@ -1298,7 +1298,7 @@ function firebaseErrorMessage(error) {
         const generatedBrainwaves = {
             beta: { title: 'Beta Waves (20 Hz)', left: 210, right: 230 },
             alpha: { title: 'Alpha Waves (10 Hz)', left: 210, right: 220 },
-            lofi: { title: 'Lo-fi Chill Ambient', left: 220, right: 223 }
+            lofi: { title: 'Lo-fi Chill Ambient', ambient: true }
         };
 
         async function playBrainwave(type) {
@@ -1351,29 +1351,43 @@ function firebaseErrorMessage(error) {
                 master.connect(brainwaveContext.destination);
                 master.gain.setTargetAtTime(0.12, brainwaveContext.currentTime, 0.08);
 
-                const leftGain = brainwaveContext.createGain();
-                const rightGain = brainwaveContext.createGain();
-                const leftPan = brainwaveContext.createStereoPanner();
-                const rightPan = brainwaveContext.createStereoPanner();
-                leftPan.pan.value = -1;
-                rightPan.pan.value = 1;
-                leftGain.gain.value = 0.5;
-                rightGain.gain.value = 0.5;
-                leftPan.connect(leftGain).connect(master);
-                rightPan.connect(rightGain).connect(master);
+                if (preset.ambient) {
+                    // Soft generated ambient chord for the original Lo-fi option.
+                    [130.81, 164.81, 196.00].forEach((frequency, index) => {
+                        const oscillator = brainwaveContext.createOscillator();
+                        const toneGain = brainwaveContext.createGain();
+                        const pan = brainwaveContext.createStereoPanner();
+                        oscillator.type = 'triangle';
+                        oscillator.frequency.value = frequency;
+                        toneGain.gain.value = 0.22;
+                        pan.pan.value = index === 0 ? -0.35 : (index === 2 ? 0.35 : 0);
+                        oscillator.connect(toneGain).connect(pan).connect(master);
+                        oscillator.start();
+                        activeOscillators.push(oscillator);
+                    });
+                } else {
+                    const leftPan = brainwaveContext.createStereoPanner();
+                    const rightPan = brainwaveContext.createStereoPanner();
+                    leftPan.pan.value = -1;
+                    rightPan.pan.value = 1;
+                    leftPan.connect(master);
+                    rightPan.connect(master);
 
-                [ [preset.left, leftPan], [preset.right, rightPan] ].forEach(([frequency, destination]) => {
-                    const oscillator = brainwaveContext.createOscillator();
-                    oscillator.type = 'sine';
-                    oscillator.frequency.value = frequency;
-                    oscillator.connect(destination);
-                    oscillator.start();
-                    activeOscillators.push(oscillator);
-                });
+                    [[preset.left, leftPan], [preset.right, rightPan]].forEach(([frequency, destination]) => {
+                        const oscillator = brainwaveContext.createOscillator();
+                        oscillator.type = 'sine';
+                        oscillator.frequency.value = frequency;
+                        oscillator.connect(destination);
+                        oscillator.start();
+                        activeOscillators.push(oscillator);
+                    });
+                }
 
-                currentAudio = { master, leftGain, rightGain };
+                currentAudio = { master };
                 if (badge) badge.innerText = 'Playing';
-                if (title) title.innerText = 'กำลังเล่น: ' + preset.title + ' (แนะนำให้ใช้หูฟัง)';
+                if (title) title.innerText = preset.ambient
+                    ? 'กำลังเล่น: ' + preset.title
+                    : 'กำลังเล่น: ' + preset.title + ' (แนะนำให้ใช้หูฟัง)';
             } catch (error) {
                 console.error('Brainwave audio error:', error);
                 stopAudio(false);
