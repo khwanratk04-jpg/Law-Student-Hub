@@ -43,6 +43,22 @@ async function loadCloudData() {
                 ...doc.data()
             }));
         }
+
+        // Load shared exam comments and attach them to matching exam cards.
+        const sharedExamCommentsSnap = await firestore.collection('publicExamComments').get();
+        exams.forEach(exam => { exam.comments = []; });
+        sharedExamCommentsSnap.forEach(doc => {
+            const data = doc.data();
+            const exam = exams.find(item => String(item.id) === String(data.examId));
+            if (exam) exam.comments.push({ ...data, id: doc.id, shared: true });
+        });
+        exams.forEach(exam => {
+            exam.comments.sort((a, b) => {
+                const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+                const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                return ta - tb;
+            });
+        });
     } catch (error) {
         console.error('Firebase load error:', error);
         showAuthError('เข้าสู่ระบบได้ แต่โหลดข้อมูลจาก Firebase ไม่สำเร็จ กรุณาตรวจสอบการตั้งค่า Firestore');
@@ -815,6 +831,7 @@ function firebaseErrorMessage(error) {
                         <div class="flex items-center gap-3 pt-1 text-[11px]">
                             <button onclick="agreeComment(${e.id}, '${c.id}')" class="text-blue-600 font-bold hover:underline">👍 เห็นด้วย (${c.agrees})</button>
                             <button onclick="openReportModal(${e.id}, '${c.id}')" class="text-slate-400 hover:text-red-500">🚩 รายงาน</button>
+                            ${firebaseAuth.currentUser && c.authorUid === firebaseAuth.currentUser.uid ? `<button onclick="deleteOwnExamComment('${e.id}', '${c.id}')" class="text-red-500 hover:text-red-700 font-bold">ลบความคิดเห็น</button>` : ''}
                         </div>
                     </div>
                 `).join('');
@@ -880,23 +897,48 @@ function firebaseErrorMessage(error) {
             if (el) el.classList.toggle('hidden');
         }
 
-        function addComment(examId) {
-            const input = document.getElementById(`comment-input-${examId}`);
+        async function addComment(examId) {
+            const input = document.getElementById('comment-input-' + examId);
             if (!input || !input.value.trim()) return;
-
-            const exam = exams.find(e => e.id === examId);
-            if (exam) {
-                exam.comments.push({
-                    id: 'c' + Date.now(),
-                    user: currentUser ? currentUser.email : 'student@dome.tu.ac.th',
-                    text: input.value.trim(),
-                    time: 'เมื่อกี้',
-                    agrees: 0,
-                    reports: 0,
-                    reportedBy: []
-                });
+            if (!firebaseAuth.currentUser) { showAuthError('กรุณาเข้าสู่ระบบก่อนแสดงความคิดเห็น'); return; }
+            const exam = exams.find(e => String(e.id) === String(examId));
+            if (!exam) return;
+            const comment = {
+                examId: String(exam.id),
+                user: currentUser ? currentUser.email : 'นักศึกษา',
+                authorUid: firebaseAuth.currentUser.uid,
+                text: input.value.trim(),
+                time: new Date().toLocaleString('th-TH'),
+                agrees: 0, reports: 0, reportedBy: [],
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            try {
+                const docRef = await firestore.collection('publicExamComments').add(comment);
+                exam.comments = exam.comments || [];
+                exam.comments.push({ ...comment, id: docRef.id, shared: true, createdAt: new Date() });
+                input.value = '';
                 renderExams();
-                saveCloudData();
+            } catch (error) {
+                console.error('Shared exam comment save error:', error);
+                alert('ส่งความคิดเห็นไม่สำเร็จ กรุณาตรวจสอบ Firestore Rules และการเชื่อมต่อ');
+            }
+        }
+
+        async function deleteOwnExamComment(examId, commentId) {
+            if (!firebaseAuth.currentUser) return;
+            const exam = exams.find(e => String(e.id) === String(examId));
+            const comment = exam && exam.comments.find(c => String(c.id) === String(commentId));
+            if (!exam || !comment || comment.authorUid !== firebaseAuth.currentUser.uid) {
+                alert('ลบได้เฉพาะความคิดเห็นที่คุณเขียนเท่านั้น'); return;
+            }
+            if (!confirm('ต้องการลบความคิดเห็นนี้ใช่หรือไม่?')) return;
+            try {
+                await firestore.collection('publicExamComments').doc(commentId).delete();
+                exam.comments = exam.comments.filter(c => String(c.id) !== String(commentId));
+                renderExams();
+            } catch (error) {
+                console.error('Delete own exam comment failed:', error);
+                alert('ลบความคิดเห็นไม่สำเร็จ กรุณาลองใหม่');
             }
         }
 
