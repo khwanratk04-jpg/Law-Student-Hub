@@ -554,6 +554,63 @@ function firebaseErrorMessage(error) {
             updateRegDomainHint();
         }
 
+        async function sendPasswordReset() {
+            const emailInput = document.getElementById('login-email');
+            const message = document.getElementById('password-reset-msg');
+            const email = emailInput ? emailInput.value.trim() : '';
+
+            if (message) {
+                message.className = 'hidden text-[11px] rounded-xl px-3 py-2';
+                message.textContent = '';
+            }
+
+            if (!email) {
+                if (message) {
+                    message.className = 'text-[11px] rounded-xl px-3 py-2 bg-amber-50 text-amber-800 border border-amber-200';
+                    message.textContent = 'กรุณากรอกอีเมลในช่องอีเมลก่อน แล้วกดลืมรหัสผ่านอีกครั้ง';
+                }
+                if (emailInput) emailInput.focus();
+                return;
+            }
+
+            const validEmail = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
+            if (!validEmail) {
+                if (message) {
+                    message.className = 'text-[11px] rounded-xl px-3 py-2 bg-amber-50 text-amber-800 border border-amber-200';
+                    message.textContent = 'รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง';
+                }
+                if (emailInput) emailInput.focus();
+                return;
+            }
+
+            const resetButton = document.querySelector('button[onclick="sendPasswordReset()"]');
+            if (resetButton) {
+                resetButton.disabled = true;
+                resetButton.textContent = 'กำลังส่งลิงก์...';
+            }
+
+            try {
+                await firebaseAuth.sendPasswordResetEmail(email);
+                if (message) {
+                    message.className = 'text-[11px] rounded-xl px-3 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200';
+                    message.textContent = 'หากอีเมลนี้ลงทะเบียนไว้ ระบบจะส่งลิงก์ตั้งรหัสผ่านใหม่ให้ กรุณาตรวจสอบกล่องจดหมายและอีเมลขยะ';
+                }
+            } catch (error) {
+                console.error('Password reset request failed:', error);
+                if (message) {
+                    message.className = 'text-[11px] rounded-xl px-3 py-2 bg-amber-50 text-amber-800 border border-amber-200';
+                    message.textContent = error.code === 'auth/invalid-email'
+                        ? 'รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง'
+                        : 'ส่งคำขอไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อและการตั้งค่า Firebase แล้วลองใหม่';
+                }
+            } finally {
+                if (resetButton) {
+                    resetButton.disabled = false;
+                    resetButton.textContent = 'ลืมรหัสผ่าน?';
+                }
+            }
+        }
+
         async function handleLogin(e) {
             e.preventDefault();
             hideAuthError();
