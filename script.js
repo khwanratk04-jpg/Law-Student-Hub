@@ -1282,20 +1282,80 @@ function firebaseErrorMessage(error) {
             }
         }
 
-        let audioCtx = null;
-        function playBrainwave(type) {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Real ambience audio released into the public domain on Wikimedia Commons.
+        let currentAudio = null;
+
+        const publicDomainSounds = {
+            beta: {
+                title: 'เสียงฝนตก (Rain)',
+                src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rain.ogg'
+            },
+            alpha: {
+                title: 'เสียงฝนและฟ้าร้อง (Rain & Thunder)',
+                src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rain_and_thunder.ogg'
+            },
+            theta: {
+                title: 'เสียงคลื่นทะเล (Waves)',
+                src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Waves.ogg'
+            },
+            lofi: {
+                title: 'เสียงคลื่นซัดฝั่ง (Ocean Waves)',
+                src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Oceanwavescrushing.ogg'
+            }
+        };
+
+        async function playBrainwave(type) {
+            const sound = publicDomainSounds[type];
             const badge = document.getElementById('audio-status-badge');
             const title = document.getElementById('current-sound-title');
-            if (badge) badge.innerText = 'Playing';
-            if (title) title.innerText = `กำลังเล่นคลื่นเสียง: ${type.toUpperCase()}`;
+
+            if (!sound) {
+                if (badge) badge.innerText = 'Unavailable';
+                if (title) title.innerText = 'ไม่พบไฟล์เสียงที่เลือก';
+                return;
+            }
+
+            stopAudio(false);
+            const audio = new Audio(sound.src);
+            currentAudio = audio;
+            audio.loop = true;
+            audio.volume = 0.55;
+            audio.preload = 'auto';
+
+            audio.addEventListener('playing', () => {
+                if (badge) badge.innerText = 'Playing';
+                if (title) title.innerText = `กำลังเล่น: ${sound.title}`;
+            }, { once: true });
+
+            audio.addEventListener('error', () => {
+                if (currentAudio === audio) currentAudio = null;
+                if (badge) badge.innerText = 'Error';
+                if (title) title.innerText = 'โหลดเสียงไม่สำเร็จ กรุณาลองใหม่';
+            }, { once: true });
+
+            try {
+                await audio.play();
+            } catch (error) {
+                if (badge) badge.innerText = 'Tap to retry';
+                if (title) title.innerText = 'กรุณากดเลือกเสียงอีกครั้งเพื่อเริ่มเล่น';
+            }
         }
 
-        function stopAudio() {
-            const badge = document.getElementById('audio-status-badge');
-            const title = document.getElementById('current-sound-title');
-            if (badge) badge.innerText = 'Ready';
-            if (title) title.innerText = 'เลือกคลื่นเสียงเพื่อเปิดเล่น';
+        function stopAudio(resetStatus = true) {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio.removeAttribute('src');
+                currentAudio.load();
+                currentAudio = null;
+            }
+
+            if (resetStatus) {
+                const badge = document.getElementById('audio-status-badge');
+                const title = document.getElementById('current-sound-title');
+                if (badge) badge.innerText = 'Ready';
+                if (title) title.innerText = 'เลือกเสียงบรรยากาศเพื่อเปิดเล่น';
+            }
         }
 
         // SETTINGS MODAL
