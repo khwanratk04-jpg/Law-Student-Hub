@@ -1409,7 +1409,7 @@ function firebaseErrorMessage(error) {
             }
         }
 
-        // YouTube audio sources selected by the user.
+        // Sound Hub: YouTube streams plus the local Deep Theta 4Hz file.
         let currentAudio = null;
 
         const brainwaveYouTube = {
@@ -1427,6 +1427,10 @@ function firebaseErrorMessage(error) {
                 title: 'Theta Wave',
                 videoId: 'qQ_W1w9v-2Y',
                 url: 'https://youtu.be/qQ_W1w9v-2Y'
+            },
+            deepTheta4Hz: {
+                title: 'Deep Theta 4Hz',
+                src: './audio/Deep%20Theta%204Hz.mp3'
             },
             lofi: {
                 title: 'Lo-fi',
@@ -1448,6 +1452,33 @@ function firebaseErrorMessage(error) {
             }
 
             stopAudio(false);
+            playerContainer.innerHTML = '';
+            playerContainer.classList.remove('hidden');
+
+            // Play the uploaded MP3 directly for Deep Theta 4Hz.
+            if (sound.src) {
+                const audio = new Audio(sound.src);
+                audio.loop = true;
+                audio.preload = 'auto';
+                audio.volume = 0.7;
+                currentAudio = audio;
+
+                audio.addEventListener('error', () => {
+                    if (badge) badge.innerText = 'Error';
+                    if (title) title.innerText = 'โหลดไฟล์ Deep Theta 4Hz ไม่สำเร็จ กรุณาตรวจสอบไฟล์ในโฟลเดอร์ audio';
+                }, { once: true });
+
+                audio.play().then(() => {
+                    if (badge) badge.innerText = 'Playing';
+                    if (title) title.innerText = 'กำลังเล่น: ' + sound.title;
+                }).catch(error => {
+                    console.error('Audio playback error:', error);
+                    if (badge) badge.innerText = 'Error';
+                    if (title) title.innerText = 'เล่นไฟล์เสียงไม่ได้ กรุณาตรวจสอบไฟล์ Deep Theta 4Hz.mp3';
+                });
+                return;
+            }
+
             const iframe = document.createElement('iframe');
             iframe.src = 'https://www.youtube.com/embed/' + sound.videoId + '?autoplay=1&playsinline=1&rel=0';
             iframe.title = sound.title + ' YouTube player';
@@ -1457,9 +1488,7 @@ function firebaseErrorMessage(error) {
             iframe.className = 'w-full aspect-video rounded-xl border border-slate-200';
             iframe.style.minHeight = '180px';
 
-            playerContainer.innerHTML = '';
             playerContainer.appendChild(iframe);
-            playerContainer.classList.remove('hidden');
             currentAudio = iframe;
 
             if (badge) badge.innerText = 'Player Ready';
@@ -1468,11 +1497,17 @@ function firebaseErrorMessage(error) {
 
         function stopAudio(resetStatus = true) {
             const playerContainer = document.getElementById('youtube-audio-player');
+
+            if (currentAudio && typeof currentAudio.pause === 'function') {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+            currentAudio = null;
+
             if (playerContainer) {
                 playerContainer.innerHTML = '';
                 playerContainer.classList.add('hidden');
             }
-            currentAudio = null;
 
             if (resetStatus) {
                 const badge = document.getElementById('audio-status-badge');
