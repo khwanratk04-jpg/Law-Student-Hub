@@ -1409,138 +1409,70 @@ function firebaseErrorMessage(error) {
             }
         }
 
-        // Real ambience audio released into the public domain on Wikimedia Commons.
-        // Brainwave Sound Hub: CC0/Public Domain audio + Web Audio binaural tones
+        // YouTube audio sources selected by the user.
         let currentAudio = null;
-        let brainwaveContext = null;
-        let activeOscillators = [];
 
-        const publicDomainSounds = {
+        const brainwaveYouTube = {
+            alpha: {
+                title: 'Alpha Wave',
+                videoId: 'u3papaX85MA',
+                url: 'https://www.youtube.com/live/u3papaX85MA'
+            },
+            beta: {
+                title: 'Beta Wave',
+                videoId: 'YWIhyOWxKPw',
+                url: 'https://youtu.be/YWIhyOWxKPw'
+            },
             theta: {
-                title: 'Theta Waves (4 Hz) — Public Domain',
-                src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Binaural_Beat_(98_%26_102Hz)_30s.ogg'
+                title: 'Theta Wave',
+                videoId: 'qQ_W1w9v-2Y',
+                url: 'https://youtu.be/qQ_W1w9v-2Y'
+            },
+            lofi: {
+                title: 'Lo-fi',
+                videoId: 'VUQfT3gNT3g',
+                url: 'https://youtu.be/VUQfT3gNT3g'
             }
         };
 
-        const generatedBrainwaves = {
-            beta: { title: 'Beta Waves (20 Hz)', left: 210, right: 230 },
-            alpha: { title: 'Alpha Waves (10 Hz)', left: 210, right: 220 },
-            lofi: { title: 'Lo-fi Chill Ambient', ambient: true }
-        };
-
-        async function playBrainwave(type) {
+        function playBrainwave(type) {
+            const sound = brainwaveYouTube[type];
             const badge = document.getElementById('audio-status-badge');
             const title = document.getElementById('current-sound-title');
-            stopAudio(false);
+            const playerContainer = document.getElementById('youtube-audio-player');
 
-            if (type === 'theta') {
-                const sound = publicDomainSounds.theta;
-                const audio = new Audio(sound.src);
-                currentAudio = audio;
-                audio.loop = true;
-                audio.volume = 0.35;
-                audio.preload = 'auto';
-                audio.addEventListener('playing', () => {
-                    if (badge) badge.innerText = 'Playing';
-                    if (title) title.innerText = 'กำลังเล่น: ' + sound.title;
-                }, { once: true });
-                audio.addEventListener('error', () => {
-                    if (currentAudio === audio) currentAudio = null;
-                    if (badge) badge.innerText = 'Error';
-                    if (title) title.innerText = 'โหลดไฟล์ Theta ไม่สำเร็จ กรุณาลองใหม่';
-                }, { once: true });
-                try {
-                    await audio.play();
-                } catch (error) {
-                    if (badge) badge.innerText = 'Tap to retry';
-                    if (title) title.innerText = 'เบราว์เซอร์ยังไม่อนุญาตให้เล่นเสียง กรุณากดอีกครั้ง';
-                }
-                return;
-            }
-
-            const preset = generatedBrainwaves[type];
-            if (!preset) {
+            if (!sound || !playerContainer) {
                 if (badge) badge.innerText = 'Unavailable';
-                if (title) title.innerText = 'ไม่พบคลื่นเสียงที่เลือก';
+                if (title) title.innerText = 'ไม่พบเครื่องเล่นเสียง กรุณารีเฟรชหน้าเว็บ';
                 return;
             }
 
-            try {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContextClass) throw new Error('AudioContext is not supported');
-                if (!brainwaveContext || brainwaveContext.state === 'closed') {
-                    brainwaveContext = new AudioContextClass();
-                }
-                await brainwaveContext.resume();
+            stopAudio(false);
+            const iframe = document.createElement('iframe');
+            iframe.src = 'https://www.youtube.com/embed/' + sound.videoId + '?autoplay=1&playsinline=1&rel=0';
+            iframe.title = sound.title + ' YouTube player';
+            iframe.allow = 'autoplay; encrypted-media; picture-in-picture; web-share';
+            iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+            iframe.allowFullscreen = true;
+            iframe.className = 'w-full aspect-video rounded-xl border border-slate-200';
+            iframe.style.minHeight = '180px';
 
-                const master = brainwaveContext.createGain();
-                master.gain.value = 0.0001;
-                master.connect(brainwaveContext.destination);
-                master.gain.setTargetAtTime(0.12, brainwaveContext.currentTime, 0.08);
+            playerContainer.innerHTML = '';
+            playerContainer.appendChild(iframe);
+            playerContainer.classList.remove('hidden');
+            currentAudio = iframe;
 
-                if (preset.ambient) {
-                    // Soft generated ambient chord for the original Lo-fi option.
-                    [130.81, 164.81, 196.00].forEach((frequency, index) => {
-                        const oscillator = brainwaveContext.createOscillator();
-                        const toneGain = brainwaveContext.createGain();
-                        const pan = brainwaveContext.createStereoPanner();
-                        oscillator.type = 'triangle';
-                        oscillator.frequency.value = frequency;
-                        toneGain.gain.value = 0.22;
-                        pan.pan.value = index === 0 ? -0.35 : (index === 2 ? 0.35 : 0);
-                        oscillator.connect(toneGain).connect(pan).connect(master);
-                        oscillator.start();
-                        activeOscillators.push(oscillator);
-                    });
-                } else {
-                    const leftPan = brainwaveContext.createStereoPanner();
-                    const rightPan = brainwaveContext.createStereoPanner();
-                    leftPan.pan.value = -1;
-                    rightPan.pan.value = 1;
-                    leftPan.connect(master);
-                    rightPan.connect(master);
-
-                    [[preset.left, leftPan], [preset.right, rightPan]].forEach(([frequency, destination]) => {
-                        const oscillator = brainwaveContext.createOscillator();
-                        oscillator.type = 'sine';
-                        oscillator.frequency.value = frequency;
-                        oscillator.connect(destination);
-                        oscillator.start();
-                        activeOscillators.push(oscillator);
-                    });
-                }
-
-                currentAudio = { master };
-                if (badge) badge.innerText = 'Playing';
-                if (title) title.innerText = preset.ambient
-                    ? 'กำลังเล่น: ' + preset.title
-                    : 'กำลังเล่น: ' + preset.title + ' (แนะนำให้ใช้หูฟัง)';
-            } catch (error) {
-                console.error('Brainwave audio error:', error);
-                stopAudio(false);
-                if (badge) badge.innerText = 'Error';
-                if (title) title.innerText = 'เปิดเสียงไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าเสียงของเบราว์เซอร์';
-            }
+            if (badge) badge.innerText = 'Player Ready';
+            if (title) title.innerText = 'กำลังเปิด: ' + sound.title + ' — หากไม่เริ่มเล่น ให้กดปุ่มเล่นบนวิดีโอ';
         }
 
         function stopAudio(resetStatus = true) {
-            if (currentAudio instanceof HTMLAudioElement) {
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
-                currentAudio.removeAttribute('src');
-                currentAudio.load();
+            const playerContainer = document.getElementById('youtube-audio-player');
+            if (playerContainer) {
+                playerContainer.innerHTML = '';
+                playerContainer.classList.add('hidden');
             }
             currentAudio = null;
-
-            activeOscillators.forEach(oscillator => {
-                try { oscillator.stop(); } catch (error) {}
-                try { oscillator.disconnect(); } catch (error) {}
-            });
-            activeOscillators = [];
-
-            if (brainwaveContext && brainwaveContext.state === 'running') {
-                brainwaveContext.suspend().catch(() => {});
-            }
 
             if (resetStatus) {
                 const badge = document.getElementById('audio-status-badge');
