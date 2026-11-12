@@ -573,7 +573,7 @@ function firebaseErrorMessage(error) {
                 return;
             }
 
-            const validEmail = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
+            const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
             if (!validEmail) {
                 if (message) {
                     message.className = 'text-[11px] rounded-xl px-3 py-2 bg-amber-50 text-amber-800 border border-amber-200';
