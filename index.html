@@ -128,6 +128,13 @@
                         </div>
                     </div>
 
+                    <div class="flex justify-end -mt-1">
+                        <button type="button" onclick="sendPasswordReset()" class="text-[11px] font-bold text-blue-600 hover:text-indigo-700 hover:underline">
+                            ลืมรหัสผ่าน?
+                        </button>
+                    </div>
+                    <div id="password-reset-msg" class="hidden text-[11px] rounded-xl px-3 py-2" role="status" aria-live="polite"></div>
+
                     <div id="login-student-hint" class="flex items-center gap-1.5 text-[11px] text-blue-700 font-semibold pt-0.5">
                         <i data-lucide="info" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>
                         <span>ตั้งรหัสผ่านที่คาดเดายาก และไม่ใช้ซ้ำกับบัญชีอื่น</span>
