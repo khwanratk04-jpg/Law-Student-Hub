@@ -1283,78 +1283,129 @@ function firebaseErrorMessage(error) {
         }
 
         // Real ambience audio released into the public domain on Wikimedia Commons.
+        // Brainwave Sound Hub: CC0/Public Domain audio + Web Audio binaural tones
         let currentAudio = null;
+        let brainwaveContext = null;
+        let activeOscillators = [];
 
         const publicDomainSounds = {
-            beta: {
-                title: 'เสียงฝนตก (Rain)',
-                src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rain.ogg'
-            },
-            alpha: {
-                title: 'เสียงฝนและฟ้าร้อง (Rain & Thunder)',
-                src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rain_and_thunder.ogg'
-            },
             theta: {
-                title: 'เสียงคลื่นทะเล (Waves)',
-                src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Waves.ogg'
-            },
-            lofi: {
-                title: 'เสียงคลื่นซัดฝั่ง (Ocean Waves)',
-                src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Oceanwavescrushing.ogg'
+                title: 'Theta Waves (4 Hz) — Public Domain',
+                src: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Binaural_Beat_(98_%26_102Hz)_30s.ogg'
             }
         };
 
+        const generatedBrainwaves = {
+            beta: { title: 'Beta Waves (20 Hz)', left: 210, right: 230 },
+            alpha: { title: 'Alpha Waves (10 Hz)', left: 210, right: 220 },
+            lofi: { title: 'Lo-fi Chill Ambient', left: 220, right: 223 }
+        };
+
         async function playBrainwave(type) {
-            const sound = publicDomainSounds[type];
             const badge = document.getElementById('audio-status-badge');
             const title = document.getElementById('current-sound-title');
+            stopAudio(false);
 
-            if (!sound) {
-                if (badge) badge.innerText = 'Unavailable';
-                if (title) title.innerText = 'ไม่พบไฟล์เสียงที่เลือก';
+            if (type === 'theta') {
+                const sound = publicDomainSounds.theta;
+                const audio = new Audio(sound.src);
+                currentAudio = audio;
+                audio.loop = true;
+                audio.volume = 0.35;
+                audio.preload = 'auto';
+                audio.addEventListener('playing', () => {
+                    if (badge) badge.innerText = 'Playing';
+                    if (title) title.innerText = 'กำลังเล่น: ' + sound.title;
+                }, { once: true });
+                audio.addEventListener('error', () => {
+                    if (currentAudio === audio) currentAudio = null;
+                    if (badge) badge.innerText = 'Error';
+                    if (title) title.innerText = 'โหลดไฟล์ Theta ไม่สำเร็จ กรุณาลองใหม่';
+                }, { once: true });
+                try {
+                    await audio.play();
+                } catch (error) {
+                    if (badge) badge.innerText = 'Tap to retry';
+                    if (title) title.innerText = 'เบราว์เซอร์ยังไม่อนุญาตให้เล่นเสียง กรุณากดอีกครั้ง';
+                }
                 return;
             }
 
-            stopAudio(false);
-            const audio = new Audio(sound.src);
-            currentAudio = audio;
-            audio.loop = true;
-            audio.volume = 0.55;
-            audio.preload = 'auto';
-
-            audio.addEventListener('playing', () => {
-                if (badge) badge.innerText = 'Playing';
-                if (title) title.innerText = `กำลังเล่น: ${sound.title}`;
-            }, { once: true });
-
-            audio.addEventListener('error', () => {
-                if (currentAudio === audio) currentAudio = null;
-                if (badge) badge.innerText = 'Error';
-                if (title) title.innerText = 'โหลดเสียงไม่สำเร็จ กรุณาลองใหม่';
-            }, { once: true });
+            const preset = generatedBrainwaves[type];
+            if (!preset) {
+                if (badge) badge.innerText = 'Unavailable';
+                if (title) title.innerText = 'ไม่พบคลื่นเสียงที่เลือก';
+                return;
+            }
 
             try {
-                await audio.play();
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) throw new Error('AudioContext is not supported');
+                if (!brainwaveContext || brainwaveContext.state === 'closed') {
+                    brainwaveContext = new AudioContextClass();
+                }
+                await brainwaveContext.resume();
+
+                const master = brainwaveContext.createGain();
+                master.gain.value = 0.0001;
+                master.connect(brainwaveContext.destination);
+                master.gain.setTargetAtTime(0.12, brainwaveContext.currentTime, 0.08);
+
+                const leftGain = brainwaveContext.createGain();
+                const rightGain = brainwaveContext.createGain();
+                const leftPan = brainwaveContext.createStereoPanner();
+                const rightPan = brainwaveContext.createStereoPanner();
+                leftPan.pan.value = -1;
+                rightPan.pan.value = 1;
+                leftGain.gain.value = 0.5;
+                rightGain.gain.value = 0.5;
+                leftPan.connect(leftGain).connect(master);
+                rightPan.connect(rightGain).connect(master);
+
+                [ [preset.left, leftPan], [preset.right, rightPan] ].forEach(([frequency, destination]) => {
+                    const oscillator = brainwaveContext.createOscillator();
+                    oscillator.type = 'sine';
+                    oscillator.frequency.value = frequency;
+                    oscillator.connect(destination);
+                    oscillator.start();
+                    activeOscillators.push(oscillator);
+                });
+
+                currentAudio = { master, leftGain, rightGain };
+                if (badge) badge.innerText = 'Playing';
+                if (title) title.innerText = 'กำลังเล่น: ' + preset.title + ' (แนะนำให้ใช้หูฟัง)';
             } catch (error) {
-                if (badge) badge.innerText = 'Tap to retry';
-                if (title) title.innerText = 'กรุณากดเลือกเสียงอีกครั้งเพื่อเริ่มเล่น';
+                console.error('Brainwave audio error:', error);
+                stopAudio(false);
+                if (badge) badge.innerText = 'Error';
+                if (title) title.innerText = 'เปิดเสียงไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าเสียงของเบราว์เซอร์';
             }
         }
 
         function stopAudio(resetStatus = true) {
-            if (currentAudio) {
+            if (currentAudio instanceof HTMLAudioElement) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
                 currentAudio.removeAttribute('src');
                 currentAudio.load();
-                currentAudio = null;
+            }
+            currentAudio = null;
+
+            activeOscillators.forEach(oscillator => {
+                try { oscillator.stop(); } catch (error) {}
+                try { oscillator.disconnect(); } catch (error) {}
+            });
+            activeOscillators = [];
+
+            if (brainwaveContext && brainwaveContext.state === 'running') {
+                brainwaveContext.suspend().catch(() => {});
             }
 
             if (resetStatus) {
                 const badge = document.getElementById('audio-status-badge');
                 const title = document.getElementById('current-sound-title');
                 if (badge) badge.innerText = 'Ready';
-                if (title) title.innerText = 'เลือกเสียงบรรยากาศเพื่อเปิดเล่น';
+                if (title) title.innerText = 'เลือกคลื่นเสียงเพื่อเปิดเล่น';
             }
         }
 
