@@ -573,11 +573,11 @@ function firebaseErrorMessage(error) {
                 return;
             }
 
-            const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-            if (!validEmail) {
+            // Let Firebase validate the email format to avoid rejecting valid university addresses.
+            if (!email || !email.includes('@')) {
                 if (message) {
                     message.className = 'text-[11px] rounded-xl px-3 py-2 bg-amber-50 text-amber-800 border border-amber-200';
-                    message.textContent = 'รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง';
+                    message.textContent = 'กรุณากรอกอีเมลที่ถูกต้องก่อนส่งคำขอ';
                 }
                 if (emailInput) emailInput.focus();
                 return;
